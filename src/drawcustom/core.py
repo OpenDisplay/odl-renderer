@@ -13,7 +13,7 @@ from .coordinates import CoordinateParser
 from .elements import debug, icons, media, shapes, text, visualizations  # noqa: F401
 from .fonts import FontManager
 from .registry import get_all_handlers
-from .types import DrawingContext, ElementType
+from .types import DataProvider, DrawingContext, ElementType
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -25,6 +25,7 @@ async def generate_image(
     background: str = "white",
     accent_color: str = "red",
     session: aiohttp.ClientSession | None = None,
+    data_provider: DataProvider | None = None,
 ) -> Image.Image:
     """Generate image from drawing instructions.
 
@@ -68,7 +69,8 @@ async def generate_image(
         colors=colors,
         coords=CoordinateParser(img.width, img.height),
         fonts=fonts,
-        session=session,  # Pass session for HTTP image loading
+        session=session,
+        data_provider=data_provider,
         pos_y=0,
     )
 

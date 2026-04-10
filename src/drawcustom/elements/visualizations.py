@@ -13,6 +13,212 @@ from drawcustom.types import DrawingContext, ElementType
 _LOGGER = logging.getLogger(__name__)
 
 
+def _fmt_value(v: int | float) -> str:
+    """Format a numeric axis label, stripping unnecessary decimal places.
+
+    Args:
+        v: The numeric value to format.
+
+    Returns:
+        Whole-number string if the value is whole (e.g. ``18.0`` → ``"18"``),
+        otherwise up to 2 decimal places with trailing zeros stripped
+        (e.g. ``1.50`` → ``"1.5"``).
+    """
+    if isinstance(v, float):
+        if v.is_integer():
+            return str(int(v))
+        rounded = round(v, 2)
+        return f"{rounded:.2f}".rstrip('0').rstrip('.')
+    return str(v)
+
+
+def _draw_grid_line(
+    draw: ImageDraw.ImageDraw,
+    style: str,
+    x1: int,
+    y1: int,
+    x2: int,
+    y2: int,
+    color: tuple,
+) -> None:
+    """Draw one axis grid line in the requested style.
+
+    Direction (horizontal vs vertical) is inferred from the coordinates —
+    a horizontal line has ``y1 == y2``; a vertical line has ``x1 == x2``.
+
+    Args:
+        draw: PIL ImageDraw instance.
+        style: One of ``"lines"``, ``"dashed"``, or ``"dotted"``.
+        x1, y1: Start coordinates.
+        x2, y2: End coordinates.
+        color: PIL fill colour.
+    """
+    if style == "lines":
+        draw.line([(x1, y1), (x2, y2)], fill=color, width=1)
+    elif style == "dashed":
+        dash_length, gap_length = 5, 3
+        if y1 == y2:  # horizontal
+            pos = x1
+            while pos < x2:
+                draw.line([(pos, y1), (min(pos + dash_length, x2), y1)], fill=color, width=1)
+                pos += dash_length + gap_length
+        else:  # vertical
+            pos = y1
+            while pos < y2:
+                draw.line([(x1, pos), (x1, min(pos + dash_length, y2))], fill=color, width=1)
+                pos += dash_length + gap_length
+    elif style == "dotted":
+        if y1 == y2:  # horizontal
+            for x in range(int(x1), int(x2), 5):
+                draw.point((x, y1), fill=color)
+        else:  # vertical
+            for y in range(int(y1), int(y2), 5):
+                draw.point((x1, y), fill=color)
+
+
+def _catmull_rom_point(
+    p0: tuple[int, int],
+    p1: tuple[int, int],
+    p2: tuple[int, int],
+    p3: tuple[int, int],
+    t: float,
+) -> tuple[int, int]:
+    """Evaluate a Catmull-Rom spline at parameter *t*.
+
+    Args:
+        p0: Control point before the segment start.
+        p1: Segment start point.
+        p2: Segment end point.
+        p3: Control point after the segment end.
+        t: Interpolation parameter in ``[0, 1]``.
+
+    Returns:
+        Interpolated ``(x, y)`` pixel coordinate.
+    """
+    t2 = t * t
+    t3 = t2 * t
+    return (
+        int(0.5 * (
+            (-t3 + 2 * t2 - t) * p0[0] +
+            (3 * t3 - 5 * t2 + 2) * p1[0] +
+            (-3 * t3 + 4 * t2 + t) * p2[0] +
+            (t3 - t2) * p3[0]
+        )),
+        int(0.5 * (
+            (-t3 + 2 * t2 - t) * p0[1] +
+            (3 * t3 - 5 * t2 + 2) * p1[1] +
+            (-3 * t3 + 4 * t2 + t) * p2[1] +
+            (t3 - t2) * p3[1]
+        ))
+    )
+
+
+def _smooth_segment(
+    points: list[tuple[int, int]],
+    steps: int,
+) -> list[tuple[int, int]]:
+    """Smooth a screen-space polyline using Catmull-Rom spline interpolation.
+
+    Args:
+        points: Screen-space ``(x, y)`` pixel coordinates (at least 3 points).
+        steps: Number of interpolation steps per control-point pair.
+
+    Returns:
+        Densified coordinate list suitable for passing directly to
+        ``ImageDraw.line()``.
+    """
+    smooth_coords: list[tuple[int, int]] = [points[0]]
+
+    if len(points) > 3:
+        for i in range(1, steps):
+            t = i / steps
+            smooth_coords.append(_catmull_rom_point(points[0], points[0], points[1], points[2], t))
+
+    for i in range(len(points) - 3):
+        p0, p1, p2, p3 = points[i], points[i + 1], points[i + 2], points[i + 3]
+        for j in range(steps):
+            t = j / steps
+            smooth_coords.append(_catmull_rom_point(p0, p1, p2, p3, t))
+
+    if len(points) > 3:
+        for i in range(1, steps):
+            t = i / steps
+            smooth_coords.append(_catmull_rom_point(points[-3], points[-2], points[-1], points[-1], t))
+
+    smooth_coords.append(points[-1])
+    return smooth_coords
+
+
+def _process_entity_segments(
+    plot: dict,
+    states: list[dict],
+    min_v: float | None,
+    max_v: float | None,
+) -> tuple[list[list[tuple[datetime, float]]], float | None, float | None]:
+    """Convert raw entity states into contiguous time-series segments.
+
+    Splits the state history into segments, breaking on gaps or invalid
+    (unavailable) values according to the ``span_gaps`` policy, and updates
+    the running min/max bounds across all entities.
+
+    Args:
+        plot: Per-entity plot config dict (may include ``"span_gaps"`` and
+              ``"value_scale"``).
+        states: Raw state records from the data provider.
+        min_v: Running minimum seen so far across all entities (``None`` if none yet).
+        max_v: Running maximum seen so far across all entities (``None`` if none yet).
+
+    Returns:
+        ``(segments, updated_min_v, updated_max_v)`` where *segments* is a list
+        of contiguous ``(timestamp, value)`` lists (may be empty if all states
+        were invalid).
+    """
+    segments: list[list[tuple[datetime, float]]] = []
+    current_segment: list[tuple[datetime, float]] = []
+    span_gaps = plot.get("span_gaps", False)
+    value_scale = plot.get("value_scale", 1.0)
+    prev_timestamp: datetime | None = None
+    prev_was_valid = True
+
+    for state in states:
+        try:
+            value = float(state["state"]) * value_scale
+            timestamp = datetime.fromisoformat(state["last_changed"])
+
+            should_break = False
+            if isinstance(span_gaps, (int, float)) and span_gaps is not True and span_gaps is not False:
+                if prev_timestamp and (timestamp - prev_timestamp).total_seconds() > span_gaps:
+                    should_break = True
+            elif span_gaps is False and not prev_was_valid:
+                should_break = True
+
+            if should_break and current_segment:
+                segments.append(current_segment)
+                current_segment = []
+
+            current_segment.append((timestamp, value))
+            prev_timestamp = timestamp
+            prev_was_valid = True
+
+        except (ValueError, TypeError):
+            if span_gaps is False and current_segment:
+                segments.append(current_segment)
+                current_segment = []
+            prev_was_valid = False
+
+    if current_segment:
+        segments.append(current_segment)
+
+    if not segments:
+        return segments, min_v, max_v
+
+    all_values = [p[1] for segment in segments for p in segment]
+    min_v = min(all_values) if min_v is None else min(min_v, min(all_values))
+    max_v = max(all_values) if max_v is None else max(max_v, max(all_values))
+
+    return segments, min_v, max_v
+
+
 @element_handler(ElementType.PLOT, requires=["data"])
 async def draw_plot(ctx: DrawingContext, element: dict) -> None:
     """Draw a line plot of time-series sensor data.
@@ -63,73 +269,11 @@ async def draw_plot(ctx: DrawingContext, element: dict) -> None:
     for plot in element["data"]:
         if plot["entity"] not in all_states:
             raise ValueError(f"no data returned for entity: {plot['entity']}")
-
-        states = all_states[plot["entity"]]
-
-        # Convert states to segments (breaking at gaps)
-        segments = []
-        current_segment = []
-        span_gaps = plot.get("span_gaps", False)
-        value_scale = plot.get("value_scale", 1.0)
-        prev_timestamp = None
-        prev_was_valid = True
-
-        for state in states:
-            try:
-                value = float(state["state"]) * value_scale
-                timestamp = datetime.fromisoformat(state["last_changed"])
-
-                # Check for gap conditions
-                should_break = False
-
-                if isinstance(span_gaps, (int, float)) and span_gaps is not True and span_gaps is not False:
-                    # Time-based gap detection
-                    if prev_timestamp:
-                        gap_seconds = (timestamp - prev_timestamp).total_seconds()
-                        if gap_seconds > span_gaps:
-                            should_break = True
-                elif span_gaps is False and not prev_was_valid:
-                    # Previous was invalid/null, start new segment
-                    should_break = True
-
-                # Start new segment if needed
-                if should_break and current_segment:
-                    segments.append(current_segment)
-                    current_segment = []
-
-                current_segment.append((timestamp, value))
-                prev_timestamp = timestamp
-                prev_was_valid = True
-
-            except (ValueError, TypeError):
-                # Invalid value (null, unavailable, etc.)
-                if span_gaps is False and current_segment:
-                    # Close current segment before null
-                    segments.append(current_segment)
-                    current_segment = []
-                prev_was_valid = False
-                continue
-
-        # Add final segment
-        if current_segment:
-            segments.append(current_segment)
-
-        if not segments:
-            continue
-
-        # Update min/max from all segments
-        all_values = [p[1] for segment in segments for p in segment]
-        if min_v is None:
-            min_v = min(all_values) if all_values else None
-        else:
-            min_v = min(min_v, min(all_values))
-
-        if max_v is None:
-            max_v = max(all_values) if all_values else None
-        else:
-            max_v = max(max_v, max(all_values))
-
-        raw_data.append(segments)
+        segments, min_v, max_v = _process_entity_segments(
+            plot, all_states[plot["entity"]], min_v, max_v
+        )
+        if segments:
+            raw_data.append(segments)
 
     if not raw_data:
         raise ValueError("plot has no valid data points")
@@ -163,17 +307,8 @@ async def draw_plot(ctx: DrawingContext, element: dict) -> None:
     # (e.g. "67.998618...") is far wider than what actually gets drawn ("68.0").
     if y_legend and y_legend_width == -1:
         y_legend_font = ctx.fonts.get_font(font_name, y_legend_size)
-
-        def _fmt(v):
-            if isinstance(v, float):
-                if v.is_integer():
-                    return str(int(v))
-                rounded = round(v, 2)
-                return f"{rounded:.2f}".rstrip('0').rstrip('.')
-            return str(v)
-
-        max_bbox = y_legend_font.getbbox(_fmt(max_v))
-        min_bbox = y_legend_font.getbbox(_fmt(min_v))
+        max_bbox = y_legend_font.getbbox(_fmt_value(max_v))
+        min_bbox = y_legend_font.getbbox(_fmt_value(min_v))
         max_width = max_bbox[2] - max_bbox[0]
         min_width = min_bbox[2] - min_bbox[0]
         y_legend_width = math.ceil(max(max_width, min_width))
@@ -291,30 +426,10 @@ async def draw_plot(ctx: DrawingContext, element: dict) -> None:
             while curr <= max_v:
                 curr_y = round(diag_y + (1 - ((curr - min_v) / spread)) * (diag_height - 1))
 
-                formatted_value = curr
-                if isinstance(curr, float):
-                    if curr.is_integer():
-                        formatted_value = int(curr)
-                    else:
-                        rounded = round(curr, 2)
-                        formatted_value = int(rounded) if rounded == int(rounded) else rounded
-
                 if y_legend_pos == "left":
-                    draw.text(
-                        (x_start, curr_y),
-                        str(formatted_value),
-                        fill=y_legend_color,
-                        font=y_legend_font,
-                        anchor="lm"
-                    )
+                    draw.text((x_start, curr_y), _fmt_value(curr), fill=y_legend_color, font=y_legend_font, anchor="lm")
                 elif y_legend_pos == "right":
-                    draw.text(
-                        (x_end, curr_y),
-                        str(formatted_value),
-                        fill=y_legend_color,
-                        font=y_legend_font,
-                        anchor="rm"
-                    )
+                    draw.text((x_end, curr_y), _fmt_value(curr), fill=y_legend_color, font=y_legend_font, anchor="rm")
 
                 if abs(curr - max_v) < 0.0001:
                     max_value_drawn = True
@@ -323,55 +438,17 @@ async def draw_plot(ctx: DrawingContext, element: dict) -> None:
 
             if not max_value_drawn and abs(max_v - min_v) > 0.0001:
                 max_y = round(diag_y + (1 - ((max_v - min_v) / spread)) * (diag_height - 1))
-
-                formatted_max = max_v
-                if isinstance(max_v, float):
-                    if max_v.is_integer():
-                        formatted_max = int(max_v)
-                    else:
-                        rounded = round(max_v, 2)
-                        formatted_max = int(rounded) if rounded == int(rounded) else rounded
-
                 if y_legend_pos == "left":
-                    draw.text(
-                        (x_start, max_y),
-                        str(formatted_max),
-                        fill=y_legend_color,
-                        font=y_legend_font,
-                        anchor="lm"
-                    )
+                    draw.text((x_start, max_y), _fmt_value(max_v), fill=y_legend_color, font=y_legend_font, anchor="lm")
                 elif y_legend_pos == "right":
-                    draw.text(
-                        (x_end, max_y),
-                        str(formatted_max),
-                        fill=y_legend_color,
-                        font=y_legend_font,
-                        anchor="rm"
-                    )
+                    draw.text((x_end, max_y), _fmt_value(max_v), fill=y_legend_color, font=y_legend_font, anchor="rm")
         else:
-            formatted_max = max_v
-            formatted_min = min_v
-
-            if isinstance(max_v, float):
-                if max_v.is_integer():
-                    formatted_max = int(max_v)
-                else:
-                    rounded = round(max_v, 2)
-                    formatted_max = int(rounded) if rounded == int(rounded) else rounded
-
-            if isinstance(min_v, float):
-                if min_v.is_integer():
-                    formatted_min = int(min_v)
-                else:
-                    rounded = round(min_v, 2)
-                    formatted_min = int(rounded) if rounded == int(rounded) else rounded
-
             if y_legend_pos == "left":
-                draw.text((x_start, top_y), str(formatted_max), fill=y_legend_color, font=y_legend_font, anchor="lt")
-                draw.text((x_start, bottom_y), str(formatted_min), fill=y_legend_color, font=y_legend_font, anchor="ls")
+                draw.text((x_start, top_y), _fmt_value(max_v), fill=y_legend_color, font=y_legend_font, anchor="lt")
+                draw.text((x_start, bottom_y), _fmt_value(min_v), fill=y_legend_color, font=y_legend_font, anchor="ls")
             elif y_legend_pos == "right":
-                draw.text((x_end, top_y), str(formatted_max), fill=y_legend_color, font=y_legend_font, anchor="rt")
-                draw.text((x_end, bottom_y), str(formatted_min), fill=y_legend_color, font=y_legend_font, anchor="rs")
+                draw.text((x_end, top_y), _fmt_value(max_v), fill=y_legend_color, font=y_legend_font, anchor="rt")
+                draw.text((x_end, bottom_y), _fmt_value(min_v), fill=y_legend_color, font=y_legend_font, anchor="rs")
 
     # Draw y-axis and grid
     if y_axis:
@@ -395,20 +472,7 @@ async def draw_plot(ctx: DrawingContext, element: dict) -> None:
             curr = min_v
             while curr <= max_v:
                 curr_y = round(diag_y + (1 - ((curr - min_v) / spread)) * (diag_height - 1))
-
-                if y_axis_grid_style == "lines":
-                    draw.line([(diag_x, curr_y), (diag_x + diag_width, curr_y)], fill=y_axis_grid_color, width=1)
-                elif y_axis_grid_style == "dashed":
-                    x_pos = diag_x
-                    dash_length = 5
-                    gap_length = 3
-                    while x_pos < diag_x + diag_width:
-                        end_x = min(x_pos + dash_length, diag_x + diag_width)
-                        draw.line([(x_pos, curr_y), (end_x, curr_y)], fill=y_axis_grid_color, width=1)
-                        x_pos += dash_length + gap_length
-                elif y_axis_grid_style == "dotted":
-                    for x in range(int(diag_x), int(diag_x + diag_width), 5):
-                        draw.point((x, curr_y), fill=y_axis_grid_color)
+                _draw_grid_line(draw, y_axis_grid_style, diag_x, curr_y, diag_x + diag_width, curr_y, y_axis_grid_color)
                 curr += y_axis_tick_every
 
     # Determine time range for x-axis labels and grid
@@ -446,21 +510,8 @@ async def draw_plot(ctx: DrawingContext, element: dict) -> None:
             while curr <= end_time:
                 rel_x = (curr - start) / duration
                 x = round(diag_x + rel_x * (diag_width - 1))
-
                 if diag_x <= x <= diag_x + diag_width:
-                    if x_axis_grid_style == "lines":
-                        draw.line([(x, diag_y), (x, diag_y + diag_height)], fill=x_axis_grid_color, width=1)
-                    elif x_axis_grid_style == "dashed":
-                        y_pos = diag_y
-                        dash_length = 5
-                        gap_length = 3
-                        while y_pos < diag_y + diag_height:
-                            end_y = min(y_pos + dash_length, diag_y + diag_height)
-                            draw.line([(x, y_pos), (x, end_y)], fill=x_axis_grid_color, width=1)
-                            y_pos += dash_length + gap_length
-                    elif x_axis_grid_style == "dotted":
-                        for y in range(int(diag_y), int(diag_y + diag_height), 5):
-                            draw.point((x, y), fill=x_axis_grid_color)
+                    _draw_grid_line(draw, x_axis_grid_style, x, diag_y, x, diag_y + diag_height, x_axis_grid_color)
                 curr += timedelta(seconds=time_interval)
 
     # Draw X Axis time labels
@@ -510,24 +561,6 @@ async def draw_plot(ctx: DrawingContext, element: dict) -> None:
         line_style = plot_config.get("line_style", "linear")
         steps = plot_config.get("smooth_steps", 10)
 
-        def catmull_rom(p0, p1, p2, p3, t):
-            t2 = t * t
-            t3 = t2 * t
-            return (
-                int(0.5 * (
-                    (-t3 + 2 * t2 - t) * p0[0] +
-                    (3 * t3 - 5 * t2 + 2) * p1[0] +
-                    (-3 * t3 + 4 * t2 + t) * p2[0] +
-                    (t3 - t2) * p3[0]
-                )),
-                int(0.5 * (
-                    (-t3 + 2 * t2 - t) * p0[1] +
-                    (3 * t3 - 5 * t2 + 2) * p1[1] +
-                    (-3 * t3 + 4 * t2 + t) * p2[1] +
-                    (t3 - t2) * p3[1]
-                ))
-            )
-
         all_screen_points = []
         for segment_data in plot_segments:
             points = []
@@ -549,45 +582,7 @@ async def draw_plot(ctx: DrawingContext, element: dict) -> None:
                         step_points.append((curr_x, curr_y))
                     points = step_points
                 if smooth and len(points) > 2 and line_style != "step":
-                    smooth_coords = []
-
-                    smooth_coords.append(points[0])
-
-                    if len(points) > 3:
-                        p0 = points[0]
-                        p1 = points[0]
-                        p2 = points[1]
-                        p3 = points[2]
-
-                        for i in range(1, steps):
-                            t = i / steps
-                            point = catmull_rom(p0, p1, p2, p3, t)
-                            smooth_coords.append(point)
-
-                    for i in range(len(points) - 3):
-                        p0 = points[i]
-                        p1 = points[i + 1]
-                        p2 = points[i + 2]
-                        p3 = points[i + 3]
-
-                        for j in range(steps):
-                            t = j / steps
-                            point = catmull_rom(p0, p1, p2, p3, t)
-                            smooth_coords.append(point)
-
-                    if len(points) > 3:
-                        p0 = points[-3]
-                        p1 = points[-2]
-                        p2 = points[-1]
-                        p3 = points[-1]
-
-                        for i in range(1, steps):
-                            t = i / steps
-                            point = catmull_rom(p0, p1, p2, p3, t)
-                            smooth_coords.append(point)
-
-                    smooth_coords.append(points[-1])
-                    draw.line(smooth_coords, fill=line_color, width=line_width, joint="curve")
+                    draw.line(_smooth_segment(points, steps), fill=line_color, width=line_width, joint="curve")
                 else:
                     draw.line(points, fill=line_color, width=line_width)
 

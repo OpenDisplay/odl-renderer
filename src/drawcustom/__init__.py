@@ -6,7 +6,7 @@ from .core import generate_image, should_show_element
 from .fonts import FontManager
 from .types import DrawingContext, ElementType, TextSegment
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
     "generate_image",

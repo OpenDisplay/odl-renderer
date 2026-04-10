@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/g4bri3lDev/drawcustom/compare/v0.4.0...v0.5.0) (2026-04-10)
+
+
+### Features
+
+* **visualizations:** add plot draw type ([7b27be2](https://github.com/g4bri3lDev/drawcustom/commit/7b27be21da66a9116caa7f7f95ead52b7ebf86b7))
+
 ## [0.4.0](https://github.com/g4bri3lDev/drawcustom/compare/v0.3.0...v0.4.0) (2026-01-16)
 
 

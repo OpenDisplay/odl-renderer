@@ -29,7 +29,7 @@ def _fmt_value(v: int | float) -> str:
         if v.is_integer():
             return str(int(v))
         rounded = round(v, 2)
-        return f"{rounded:.2f}".rstrip('0').rstrip('.')
+        return f"{rounded:.2f}".rstrip("0").rstrip(".")
     return str(v)
 
 
@@ -40,7 +40,7 @@ def _draw_grid_line(
     y1: int,
     x2: int,
     y2: int,
-    color: tuple,
+    color: tuple[int, int, int, int],
 ) -> None:
     """Draw one axis grid line in the requested style.
 
@@ -99,18 +99,24 @@ def _catmull_rom_point(
     t2 = t * t
     t3 = t2 * t
     return (
-        int(0.5 * (
-            (-t3 + 2 * t2 - t) * p0[0] +
-            (3 * t3 - 5 * t2 + 2) * p1[0] +
-            (-3 * t3 + 4 * t2 + t) * p2[0] +
-            (t3 - t2) * p3[0]
-        )),
-        int(0.5 * (
-            (-t3 + 2 * t2 - t) * p0[1] +
-            (3 * t3 - 5 * t2 + 2) * p1[1] +
-            (-3 * t3 + 4 * t2 + t) * p2[1] +
-            (t3 - t2) * p3[1]
-        ))
+        int(
+            0.5
+            * (
+                (-t3 + 2 * t2 - t) * p0[0]
+                + (3 * t3 - 5 * t2 + 2) * p1[0]
+                + (-3 * t3 + 4 * t2 + t) * p2[0]
+                + (t3 - t2) * p3[0]
+            )
+        ),
+        int(
+            0.5
+            * (
+                (-t3 + 2 * t2 - t) * p0[1]
+                + (3 * t3 - 5 * t2 + 2) * p1[1]
+                + (-3 * t3 + 4 * t2 + t) * p2[1]
+                + (t3 - t2) * p3[1]
+            )
+        ),
     )
 
 
@@ -151,8 +157,8 @@ def _smooth_segment(
 
 
 def _process_entity_segments(
-    plot: dict,
-    states: list[dict],
+    plot: dict[str, Any],
+    states: list[dict[str, Any]],
     min_v: float | None,
     max_v: float | None,
 ) -> tuple[list[list[tuple[datetime, float]]], float | None, float | None]:
@@ -220,7 +226,9 @@ def _process_entity_segments(
     return segments, min_v, max_v
 
 
-def _parse_y_legend(element: dict, ctx: DrawingContext, font_name: str, min_v: float, max_v: float) -> SimpleNamespace:
+def _parse_y_legend(
+    element: dict[str, Any], ctx: DrawingContext, font_name: str, min_v: float, max_v: float
+) -> SimpleNamespace:
     cfg = element.get("ylegend", {})
     if not cfg:
         return SimpleNamespace(enabled=False, width=0, pos=None, color=None, font=None)
@@ -237,7 +245,7 @@ def _parse_y_legend(element: dict, ctx: DrawingContext, font_name: str, min_v: f
     return SimpleNamespace(enabled=True, width=width, pos=pos, color=color, font=font)
 
 
-def _parse_y_axis(element: dict, ctx: DrawingContext) -> SimpleNamespace:
+def _parse_y_axis(element: dict[str, Any], ctx: DrawingContext) -> SimpleNamespace:
     cfg = element.get("yaxis")
     if not cfg:
         return SimpleNamespace(enabled=False, tick_every=0)
@@ -257,13 +265,21 @@ def _parse_y_axis(element: dict, ctx: DrawingContext) -> SimpleNamespace:
     )
 
 
-def _parse_x_legend(element: dict, ctx: DrawingContext, font_name: str, duration: timedelta) -> SimpleNamespace:
+def _parse_x_legend(
+    element: dict[str, Any], ctx: DrawingContext, font_name: str, duration: timedelta
+) -> SimpleNamespace:
     interval = duration.total_seconds() / 4
     cfg = element.get("xlegend", {})
     if not cfg:
         return SimpleNamespace(
-            enabled=False, interval=interval, height=0, position=None,
-            font=None, color=None, time_format="%H:%M", snap_to_hours=True,
+            enabled=False,
+            interval=interval,
+            height=0,
+            position=None,
+            font=None,
+            color=None,
+            time_format="%H:%M",
+            snap_to_hours=True,
         )
     raw_interval = cfg.get("interval")
     if raw_interval is not None:
@@ -285,12 +301,18 @@ def _parse_x_legend(element: dict, ctx: DrawingContext, font_name: str, duration
     )
 
 
-def _parse_x_axis(element: dict, ctx: DrawingContext) -> SimpleNamespace:
+def _parse_x_axis(element: dict[str, Any], ctx: DrawingContext) -> SimpleNamespace:
     cfg = element.get("xaxis", {})
     if not cfg:
         return SimpleNamespace(
-            enabled=False, width=1, color=None,
-            tick_length=0, tick_width=0, grid=False, grid_color=None, grid_style="dotted",
+            enabled=False,
+            width=1,
+            color=None,
+            tick_length=0,
+            tick_width=0,
+            grid=False,
+            grid_color=None,
+            grid_style="dotted",
         )
     return SimpleNamespace(
         enabled=True,
@@ -308,13 +330,18 @@ def _x_label_height(xlc: SimpleNamespace, xac: SimpleNamespace) -> int:
     if not xlc.enabled or xlc.height == 0:
         return 0
     if xlc.height > 0:
-        return xlc.height
-    return xlc.font.getbbox("00:00")[3] + (xac.tick_width if xac.enabled else 0) + 2
+        return int(xlc.height)
+    return int(xlc.font.getbbox("00:00")[3]) + (xac.tick_width if xac.enabled else 0) + 2
 
 
 def _calc_diagram(
-    x_start: int, y_start: int, width: int, height: int,
-    ylc: SimpleNamespace, xlc: SimpleNamespace, label_h: int,
+    x_start: int,
+    y_start: int,
+    width: int,
+    height: int,
+    ylc: SimpleNamespace,
+    xlc: SimpleNamespace,
+    label_h: int,
 ) -> SimpleNamespace:
     diag_x = x_start + (ylc.width if ylc.pos == "left" else 0)
     diag_y = y_start + (label_h if xlc.position == "top" and xlc.height != 0 else 0)
@@ -334,10 +361,14 @@ def _render_y_legend(
     draw: ImageDraw.ImageDraw,
     ylc: SimpleNamespace,
     tick_every: float,
-    min_v: float, max_v: float, spread: float,
+    min_v: float,
+    max_v: float,
+    spread: float,
     diag: SimpleNamespace,
-    x_start: int, x_end: int,
-    top_y: int, bottom_y: int,
+    x_start: int,
+    x_end: int,
+    top_y: int,
+    bottom_y: int,
 ) -> None:
     if tick_every > 0:
         curr, max_drawn = min_v, False
@@ -369,7 +400,9 @@ def _render_y_axis(
     draw: ImageDraw.ImageDraw,
     yac: SimpleNamespace,
     diag: SimpleNamespace,
-    min_v: float, max_v: float, spread: float,
+    min_v: float,
+    max_v: float,
+    spread: float,
 ) -> None:
     if yac.width > 0 and yac.color:
         draw.rectangle((diag.x, diag.y, diag.x + yac.width - 1, diag.y + diag.height - 1), fill=yac.color)
@@ -392,13 +425,16 @@ def _render_x_axis(
     xac: SimpleNamespace,
     xlc: SimpleNamespace,
     diag: SimpleNamespace,
-    start: datetime, duration: timedelta,
-    curr_time: datetime, end_time: datetime,
+    start: datetime,
+    duration: timedelta,
+    curr_time: datetime,
+    end_time: datetime,
 ) -> None:
     if xac.width > 0 and xac.color:
         draw.line(
             [(diag.x, diag.y + diag.height), (diag.x + diag.width, diag.y + diag.height)],
-            fill=xac.color, width=xac.width,
+            fill=xac.color,
+            width=xac.width,
         )
     if xac.tick_length > 0 and xac.color:
         curr = curr_time
@@ -408,7 +444,8 @@ def _render_x_axis(
             if diag.x <= x <= diag.x + diag.width:
                 draw.line(
                     [(x, diag.y + diag.height), (x, diag.y + diag.height - xac.tick_length)],
-                    fill=xac.color, width=xac.tick_width,
+                    fill=xac.color,
+                    width=xac.tick_width,
                 )
             curr += timedelta(seconds=xlc.interval)
     if xac.grid and xac.grid_color:
@@ -426,8 +463,10 @@ def _render_x_labels(
     xlc: SimpleNamespace,
     xac: SimpleNamespace,
     diag: SimpleNamespace,
-    start: datetime, duration: timedelta,
-    curr_time: datetime, end_time: datetime,
+    start: datetime,
+    duration: timedelta,
+    curr_time: datetime,
+    end_time: datetime,
     y_start: int,
 ) -> None:
     while curr_time <= end_time:
@@ -439,11 +478,15 @@ def _render_x_labels(
                 if xac.width > 0 and xac.color:
                     draw.line(
                         [(x, diag.y + diag.height), (x, diag.y + diag.height - xac.tick_width)],
-                        fill=xac.color, width=xac.width,
+                        fill=xac.color,
+                        width=xac.width,
                     )
                 draw.text(
                     (x, diag.y + diag.height + xac.tick_width + 2),
-                    text, fill=xlc.color, font=xlc.font, anchor="mt",
+                    text,
+                    fill=xlc.color,
+                    font=xlc.font,
+                    anchor="mt",
                 )
             else:  # top
                 if xac.width > 0 and xac.color:
@@ -455,11 +498,13 @@ def _render_x_labels(
 def _render_series(
     draw: ImageDraw.ImageDraw,
     ctx: DrawingContext,
-    raw_data: list,
-    plot_configs: list[dict],
-    start: datetime, duration: timedelta,
+    raw_data: list[Any],
+    plot_configs: list[dict[str, Any]],
+    start: datetime,
+    duration: timedelta,
     diag: SimpleNamespace,
-    min_v: float, spread: float,
+    min_v: float,
+    spread: float,
 ) -> None:
     for plot_segments, plot_config in zip(raw_data, plot_configs):
         line_color = ctx.colors.resolve(plot_config.get("color", "black"))
@@ -501,7 +546,7 @@ def _render_series(
 
 
 @element_handler(ElementType.PLOT, requires=["data"])
-async def draw_plot(ctx: DrawingContext, element: dict) -> None:
+async def draw_plot(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw a line plot of time-series sensor data.
 
     Requires a DataProvider in ctx.data_provider that supplies historical state
@@ -543,6 +588,7 @@ async def draw_plot(ctx: DrawingContext, element: dict) -> None:
             raw_data.append(segments)
     if not raw_data:
         raise ValueError("plot has no valid data points")
+    assert min_v is not None and max_v is not None  # guaranteed by non-empty raw_data
     if element.get("round_values", False):
         max_v, min_v = math.ceil(max_v), math.floor(min_v)
     if max_v == min_v:
@@ -562,15 +608,26 @@ async def draw_plot(ctx: DrawingContext, element: dict) -> None:
         draw.rectangle((x_start, y_start, x_end, y_end), fill=None, outline=ctx.colors.resolve("black"), width=1)
         draw.rectangle(
             (diag.x, diag.y, diag.x + diag.width - 1, diag.y + diag.height - 1),
-            fill=None, outline=ctx.colors.resolve("red"), width=1,
+            fill=None,
+            outline=ctx.colors.resolve("red"),
+            width=1,
         )
 
     # Y legend and axis
     if ylc.enabled:
         shift = label_h if xlc.position == "top" and xlc.height != 0 else 0
         _render_y_legend(
-            draw, ylc, yac.tick_every, min_v, max_v, spread,
-            diag, x_start, x_end, y_start + shift, y_end - label_h + shift,
+            draw,
+            ylc,
+            yac.tick_every,
+            min_v,
+            max_v,
+            spread,
+            diag,
+            x_start,
+            x_end,
+            y_start + shift,
+            y_end - label_h + shift,
         )
     if yac.enabled:
         _render_y_axis(draw, yac, diag, min_v, max_v, spread)

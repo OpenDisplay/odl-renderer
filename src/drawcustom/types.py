@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 import aiohttp
 from PIL import Image
@@ -27,7 +27,7 @@ class DataProvider(Protocol):
         entity_ids: list[str],
         start: datetime,
         end: datetime,
-    ) -> dict[str, list[dict]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """Return historical states for the given entities and time range.
 
         Args:
@@ -43,6 +43,7 @@ class DataProvider(Protocol):
             Entities with no data in the range may be absent or map to an empty list.
         """
         ...
+
 
 class ElementType(str, Enum):
     """Enum for supported element types.

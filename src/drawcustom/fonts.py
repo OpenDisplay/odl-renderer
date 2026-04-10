@@ -22,15 +22,11 @@ class FontManager:
     - Built-in font names (loaded from assets/)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the font manager with empty cache."""
         self._font_cache: Dict[Tuple[str, int], ImageFont.FreeTypeFont] = {}
 
-    def get_font(
-            self,
-            font: str | ImageFont.FreeTypeFont,
-            size: int
-    ) -> ImageFont.FreeTypeFont:
+    def get_font(self, font: str | ImageFont.FreeTypeFont, size: int) -> ImageFont.FreeTypeFont:
         """Get a font, loading it if necessary.
 
         Args:
@@ -93,9 +89,7 @@ class FontManager:
             try:
                 return ImageFont.truetype(str(asset_path), size)
             except (OSError, IOError) as err:
-                raise ValueError(
-                    f"Failed to load built-in font '{font_name}': {err}"
-                ) from err
+                raise ValueError(f"Failed to load built-in font '{font_name}': {err}") from err
 
         # Font not found
         raise ValueError(

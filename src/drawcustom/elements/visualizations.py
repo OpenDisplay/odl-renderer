@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
+from typing import Any
 
 from PIL import ImageDraw
 
@@ -17,7 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @element_handler(ElementType.PROGRESS_BAR, requires=["x_start", "x_end", "y_start", "y_end", "progress"])
-async def draw_progress_bar(ctx: DrawingContext, element: dict) -> None:
+async def draw_progress_bar(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw progress bar with optional percentage text.
 
     Renders a progress bar to visualize a percentage value, with options
@@ -29,30 +30,25 @@ async def draw_progress_bar(ctx: DrawingContext, element: dict) -> None:
     """
     draw = ImageDraw.Draw(ctx.img)
 
-    x_start = ctx.coords.parse_x(element['x_start'])
-    y_start = ctx.coords.parse_y(element['y_start'])
-    x_end = ctx.coords.parse_x(element['x_end'])
-    y_end = ctx.coords.parse_y(element['y_end'])
+    x_start = ctx.coords.parse_x(element["x_start"])
+    y_start = ctx.coords.parse_y(element["y_start"])
+    x_end = ctx.coords.parse_x(element["x_end"])
+    y_end = ctx.coords.parse_y(element["y_end"])
 
-    progress = min(100, max(0, element['progress']))  # Clamp to 0-100
-    direction = element.get('direction', 'right')
-    background = ctx.colors.resolve(element.get('background', 'white'))
-    fill = ctx.colors.resolve(element.get('fill', 'red'))
-    outline = ctx.colors.resolve(element.get('outline', 'black'))
-    width = element.get('width', 1)
-    show_percentage = element.get('show_percentage', False)
-    font_name = element.get('font_name', 'ppb.ttf')
+    progress = min(100, max(0, element["progress"]))  # Clamp to 0-100
+    direction = element.get("direction", "right")
+    background = ctx.colors.resolve(element.get("background", "white"))
+    fill = ctx.colors.resolve(element.get("fill", "red"))
+    outline = ctx.colors.resolve(element.get("outline", "black"))
+    width = element.get("width", 1)
+    show_percentage = element.get("show_percentage", False)
+    font_name = element.get("font_name", "ppb.ttf")
 
     # Draw background
-    draw.rectangle(
-        ((x_start, y_start), (x_end, y_end)),
-        fill=background,
-        outline=outline,
-        width=width
-    )
+    draw.rectangle(((x_start, y_start), (x_end, y_end)), fill=background, outline=outline, width=width)
 
     # Calculate progress dimensions
-    if direction in ['right', 'left']:
+    if direction in ["right", "left"]:
         progress_width = int((x_end - x_start) * (progress / 100))
         progress_height = y_end - y_start
     else:  # up or down
@@ -60,34 +56,17 @@ async def draw_progress_bar(ctx: DrawingContext, element: dict) -> None:
         progress_height = int((y_end - y_start) * (progress / 100))
 
     # Draw progress
-    if direction == 'right':
-        draw.rectangle(
-            (x_start, y_start, x_start + progress_width, y_end),
-            fill=fill
-        )
-    elif direction == 'left':
-        draw.rectangle(
-            (x_end - progress_width, y_start, x_end, y_end),
-            fill=fill
-        )
-    elif direction == 'up':
-        draw.rectangle(
-            (x_start, y_end - progress_height, x_end, y_end),
-            fill=fill
-        )
-    elif direction == 'down':
-        draw.rectangle(
-            (x_start, y_start, x_end, y_start + progress_height),
-            fill=fill
-        )
+    if direction == "right":
+        draw.rectangle((x_start, y_start, x_start + progress_width, y_end), fill=fill)
+    elif direction == "left":
+        draw.rectangle((x_end - progress_width, y_start, x_end, y_end), fill=fill)
+    elif direction == "up":
+        draw.rectangle((x_start, y_end - progress_height, x_end, y_end), fill=fill)
+    elif direction == "down":
+        draw.rectangle((x_start, y_start, x_end, y_start + progress_height), fill=fill)
 
     # Draw outline
-    draw.rectangle(
-        (x_start, y_start, x_end, y_end),
-        fill=None,
-        outline=outline,
-        width=width
-    )
+    draw.rectangle((x_start, y_start, x_end, y_end), fill=None, outline=outline, width=width)
 
     # Add percentage text if enabled
     if show_percentage:
@@ -112,19 +91,13 @@ async def draw_progress_bar(ctx: DrawingContext, element: dict) -> None:
         else:
             text_color = fill
 
-        draw.text(
-            (text_x, text_y),
-            percentage_text,
-            font=font,
-            fill=text_color,
-            anchor='lt'
-        )
+        draw.text((text_x, text_y), percentage_text, font=font, fill=text_color, anchor="lt")
 
     ctx.pos_y = y_end
 
 
 @element_handler(ElementType.DIAGRAM, requires=["x", "height"])
-async def draw_diagram(ctx: DrawingContext, element: dict) -> None:
+async def draw_diagram(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw diagram with optional bars.
 
     Renders a basic diagram with axes and optional bar chart elements.
@@ -137,43 +110,39 @@ async def draw_diagram(ctx: DrawingContext, element: dict) -> None:
     draw.fontmode = "1"
 
     # Get base properties
-    pos_x = element['x']
-    height = element['height']
-    width = element.get('width', ctx.img.width)
-    offset_lines = element.get('margin', 20)
+    pos_x = element["x"]
+    height = element["height"]
+    width = element.get("width", ctx.img.width)
+    offset_lines = element.get("margin", 20)
 
     # Draw axes
     # X axis
     draw.line(
-        [(pos_x + offset_lines, ctx.pos_y + height - offset_lines),
-         (pos_x + width, ctx.pos_y + height - offset_lines)],
-        fill=ctx.colors.resolve('black'),
-        width=1
+        [(pos_x + offset_lines, ctx.pos_y + height - offset_lines), (pos_x + width, ctx.pos_y + height - offset_lines)],
+        fill=ctx.colors.resolve("black"),
+        width=1,
     )
     # Y axis
     draw.line(
-        [(pos_x + offset_lines, ctx.pos_y),
-         (pos_x + offset_lines, ctx.pos_y + height - offset_lines)],
-        fill=ctx.colors.resolve('black'),
-        width=1
+        [(pos_x + offset_lines, ctx.pos_y), (pos_x + offset_lines, ctx.pos_y + height - offset_lines)],
+        fill=ctx.colors.resolve("black"),
+        width=1,
     )
 
     if "bars" in element:
         bar_config = element["bars"]
-        bar_margin = bar_config.get('margin', 10)
+        bar_margin = bar_config.get("margin", 10)
         bar_data = bar_config["values"].split(";")
         bar_count = len(bar_data)
         font_name = bar_config.get("font", "ppb.ttf")
 
         # Calculate bar width
-        bar_width = math.floor(
-            (width - offset_lines - ((bar_count + 1) * bar_margin)) / bar_count
-        )
+        bar_width = math.floor((width - offset_lines - ((bar_count + 1) * bar_margin)) / bar_count)
 
         # Set up font for legends
-        size = bar_config.get('legend_size', 10)
+        size = bar_config.get("legend_size", 10)
         font = ctx.fonts.get_font(font_name, size)
-        legend_color = ctx.colors.resolve(bar_config.get('legend_color', "black"))
+        legend_color = ctx.colors.resolve(bar_config.get("legend_color", "black"))
 
         # Find maximum value for scaling
         max_val = 0
@@ -204,15 +173,19 @@ async def draw_diagram(ctx: DrawingContext, element: dict) -> None:
                     str(name),
                     fill=legend_color,
                     font=font,
-                    anchor="mm"
+                    anchor="mm",
                 )
 
                 # Draw bar
                 bar_height = height_factor * value
                 draw.rectangle(
-                    (x_pos, ctx.pos_y + height - offset_lines - bar_height,
-                     x_pos + bar_width, ctx.pos_y + height - offset_lines),
-                    fill=ctx.colors.resolve(bar_config["color"])
+                    (
+                        x_pos,
+                        ctx.pos_y + height - offset_lines - bar_height,
+                        x_pos + bar_width,
+                        ctx.pos_y + height - offset_lines,
+                    ),
+                    fill=ctx.colors.resolve(bar_config["color"]),
                 )
 
             except (ValueError, IndexError, KeyError) as e:

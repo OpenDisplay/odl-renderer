@@ -37,8 +37,8 @@ test = [
     "pytest>=9.0.2",
     "pytest-asyncio>=1.3.0",
     "pytest-cov>=7.0.0",
-    "pytest-xdist>=3.8.0"
-
+    "pytest-xdist>=3.8.0",
+    "time-machine>=2.9.0",
 ]
 
 visual = [
@@ -52,7 +52,8 @@ property = [
 
 dev = [
     "mypy>=1.19.1",
-    "ruff>=0.14.10"
+    "ruff>=0.14.10",
+    "prek>=0.3.4",
 ]
 [project.urls]
 Homepage = "https://github.com/g4bri3lDev/drawcustom"

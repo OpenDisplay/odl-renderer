@@ -24,7 +24,7 @@ class ColorResolver:
         color_str = str(color).lower()
 
         # Hex color support: #RGB or #RRGGBB
-        if color_str.startswith('#'):
+        if color_str.startswith("#"):
             return self._parse_hex(color_str[1:])
 
         return self._resolve_named(color_str)
@@ -50,8 +50,7 @@ class ColorResolver:
             return BLACK
         if color_str in ("white", "w"):
             return WHITE
-        if color_str in ("half_black", "hb", "gray", "grey", "half_white",
-                         "hw"):
+        if color_str in ("half_black", "hb", "gray", "grey", "half_white", "hw"):
             return HALF_BLACK
         if color_str in ("accent", "a"):
             return YELLOW if self.accent_color == "yellow" else RED

@@ -9,9 +9,11 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
+from drawcustom.colors import BLACK
 from drawcustom.registry import element_handler
 from drawcustom.types import DrawingContext, ElementType
 
@@ -83,10 +85,7 @@ def _render_mdi_icon(name: str, size: int, color: tuple[int, int, int, int]) -> 
     index = _get_mdi_index()
     codepoint = index.get(name)
     if not codepoint:
-        raise ValueError(
-            f"Icon '{name}' not found. "
-            f"Search icons at https://pictogrammers.com/library/mdi/"
-        )
+        raise ValueError(f"Icon '{name}' not found. Search icons at https://pictogrammers.com/library/mdi/")
 
     # Convert hex to character
     try:
@@ -112,7 +111,7 @@ def _render_mdi_icon(name: str, size: int, color: tuple[int, int, int, int]) -> 
 
 
 @element_handler(ElementType.ICON, requires=["x", "y", "value", "size"])
-async def draw_icon(ctx: DrawingContext, element: dict) -> None:
+async def draw_icon(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw Material Design Icon.
 
     Renders an icon from the bundled MDI font (10,000+ icons).
@@ -136,7 +135,7 @@ async def draw_icon(ctx: DrawingContext, element: dict) -> None:
     # Get icon properties
     name = element["value"]
     size = element["size"]
-    color = ctx.colors.resolve(element.get("color") or element.get("fill", "black"))
+    color = ctx.colors.resolve(element.get("color") or element.get("fill", "black")) or BLACK
     anchor = element.get("anchor", "mm")
 
     # Render icon
@@ -171,7 +170,7 @@ async def draw_icon(ctx: DrawingContext, element: dict) -> None:
 
 
 @element_handler(ElementType.ICON_SEQUENCE, requires=["x", "y", "icons", "size"])
-async def draw_icon_sequence(ctx: DrawingContext, element: dict) -> None:
+async def draw_icon_sequence(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw a sequence of MDI icons.
 
     Renders multiple icons in a row with consistent spacing.
@@ -197,7 +196,7 @@ async def draw_icon_sequence(ctx: DrawingContext, element: dict) -> None:
     # Get properties
     size = element["size"]
     spacing = element.get("spacing", size // 4)
-    color = ctx.colors.resolve(element.get("color") or element.get("fill", "black"))
+    color = ctx.colors.resolve(element.get("color") or element.get("fill", "black")) or BLACK
     anchor = element.get("anchor", "mm")
     direction = element.get("direction", "right")
 

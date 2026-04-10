@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from .coordinates import CoordinateParser
     from .fonts import FontManager
 
+
 class ElementType(str, Enum):
     """Enum for supported element types.
 
@@ -49,6 +50,7 @@ class ElementType(str, Enum):
 
         return self.value
 
+
 @dataclass
 class TextSegment:
     """Represents a segment of text with its color.
@@ -61,13 +63,16 @@ class TextSegment:
         color: The color name for this segment
         start_x: Starting x position for rendering (calculated during layout)
     """
+
     text: str
     color: str
     start_x: int = 0
 
+
 @dataclass
 class DrawingContext:
     """Drawing context passed to element handlers."""
+
     img: Image.Image
     colors: "ColorResolver"
     coords: "CoordinateParser"

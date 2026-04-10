@@ -14,8 +14,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def load_image(
-        source: str | bytes | Image.Image,
-        session: aiohttp.ClientSession | None = None,
+    source: str | bytes | Image.Image,
+    session: aiohttp.ClientSession | None = None,
 ) -> Image.Image:
     """Load an image from various sources.
 
@@ -75,8 +75,8 @@ async def load_image(
 
 
 async def _load_from_http(
-        url: str,
-        session: aiohttp.ClientSession | None = None,
+    url: str,
+    session: aiohttp.ClientSession | None = None,
 ) -> Image.Image:
     """Load image from HTTP/HTTPS URL.
 
@@ -98,6 +98,7 @@ async def _load_from_http(
                 image_bytes = await response.read()
         else:
             import aiohttp
+
             async with aiohttp.ClientSession() as temp_session:
                 async with temp_session.get(url) as response:
                     response.raise_for_status()

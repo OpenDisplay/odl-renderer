@@ -1,3 +1,6 @@
+from typing import Any
+
+
 class CoordinateParser:
     """Helper class for parsing coordinates with percentage support.
 
@@ -36,7 +39,7 @@ class CoordinateParser:
             return int(value)
 
         value = str(value).strip()
-        if value.endswith('%'):
+        if value.endswith("%"):
             try:
                 percentage = float(value[:-1])
                 return int((percentage / 100) * total_dimension)
@@ -91,7 +94,7 @@ class CoordinateParser:
         """
         return self._parse_dimension(value, self.width if is_width else self.height)
 
-    def parse_coordinates(self, element: dict, prefix: str = '') -> tuple[int, int]:
+    def parse_coordinates(self, element: dict[str, Any], prefix: str = "") -> tuple[int, int]:
         """Parse x,y coordinates from element with given prefix.
 
         Args:

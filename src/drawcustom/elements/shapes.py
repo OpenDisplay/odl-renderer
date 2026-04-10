@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from PIL import ImageDraw
 
@@ -12,7 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @element_handler(ElementType.LINE, requires=["x_start", "x_end"])
-async def draw_line(ctx: DrawingContext, element: dict) -> None:
+async def draw_line(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """
     Draw line element.
 
@@ -34,35 +35,25 @@ async def draw_line(ctx: DrawingContext, element: dict) -> None:
         y_end = element.get("y_end", y_start)
 
     # Get line properties
-    fill = ctx.colors.resolve(element.get('fill', "black"))
-    width = element.get('width', 1)
-    dashed = element.get('dashed', False)
-    dash_length = element.get('dash_length', 5)
-    space_length = element.get('space_length', 3)
+    fill = ctx.colors.resolve(element.get("fill", "black"))
+    width = element.get("width", 1)
+    dashed = element.get("dashed", False)
+    dash_length = element.get("dash_length", 5)
+    space_length = element.get("space_length", 3)
 
     x_start = element["x_start"]
     x_end = element["x_end"]
 
     if dashed:
-        draw_dashed_line(
-            draw,
-            (x_start, y_start),
-            (x_end, y_end),
-            dash_length,
-            space_length,
-            fill, width)
+        draw_dashed_line(draw, (x_start, y_start), (x_end, y_end), dash_length, space_length, fill or BLACK, width)
     else:
-        draw.line(
-            [(element['x_start'], y_start), (element['x_end'], y_end)],
-            fill=fill,
-            width=width
-        )
+        draw.line([(element["x_start"], y_start), (element["x_end"], y_end)], fill=fill, width=width)
 
     ctx.pos_y = max(y_start, y_end)
 
 
 @element_handler(ElementType.RECTANGLE, requires=["x_start", "x_end", "y_start", "y_end"])
-async def draw_rectangle(ctx: DrawingContext, element: dict) -> None:
+async def draw_rectangle(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """
     Draw rectangle element.
 
@@ -75,19 +66,17 @@ async def draw_rectangle(ctx: DrawingContext, element: dict) -> None:
     draw = ImageDraw.Draw(ctx.img)
 
     # Coordinates
-    x_start = ctx.coords.parse_x(element['x_start'])
-    x_end = ctx.coords.parse_x(element['x_end'])
-    y_start = ctx.coords.parse_y(element['y_start'])
-    y_end = ctx.coords.parse_y(element['y_end'])
+    x_start = ctx.coords.parse_x(element["x_start"])
+    x_end = ctx.coords.parse_x(element["x_end"])
+    y_start = ctx.coords.parse_y(element["y_start"])
+    y_end = ctx.coords.parse_y(element["y_end"])
 
     # Get rectangle properties
-    rect_fill = ctx.colors.resolve(element.get('fill'))
-    rect_outline = ctx.colors.resolve(element.get('outline', "black"))
-    rect_width = element.get('width', 1)
-    radius = element.get('radius', 10 if 'corners' in element else 0)
-    corners = get_rounded_corners(
-        element.get('corners', "all" if 'radius' in element else "")
-    )
+    rect_fill = ctx.colors.resolve(element.get("fill"))
+    rect_outline = ctx.colors.resolve(element.get("outline", "black"))
+    rect_width = element.get("width", 1)
+    radius = element.get("radius", 10 if "corners" in element else 0)
+    corners = get_rounded_corners(element.get("corners", "all" if "radius" in element else ""))
 
     # Draw rectangle
     draw.rounded_rectangle(
@@ -96,7 +85,7 @@ async def draw_rectangle(ctx: DrawingContext, element: dict) -> None:
         outline=rect_outline,
         width=rect_width,
         radius=radius,
-        corners=corners
+        corners=corners,
     )
 
     ctx.pos_y = y_end
@@ -104,9 +93,9 @@ async def draw_rectangle(ctx: DrawingContext, element: dict) -> None:
 
 @element_handler(
     ElementType.RECTANGLE_PATTERN,
-    requires=["x_start", "x_size", "y_start", "y_size", "x_repeat", "y_repeat", "x_offset", "y_offset"]
+    requires=["x_start", "x_size", "y_start", "y_size", "x_repeat", "y_repeat", "x_offset", "y_offset"],
 )
-async def draw_rectangle_pattern(ctx: DrawingContext, element: dict) -> None:
+async def draw_rectangle_pattern(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """
     Draw repeated rectangle pattern.
 
@@ -120,42 +109,38 @@ async def draw_rectangle_pattern(ctx: DrawingContext, element: dict) -> None:
     draw = ImageDraw.Draw(ctx.img)
 
     # Get pattern properties
-    fill = ctx.colors.resolve(element.get('fill'))
-    outline = ctx.colors.resolve(element.get('outline', "black"))
-    width = element.get('width', 1)
-    radius = element.get('radius', 10 if 'corners' in element else 0)
-    corners = get_rounded_corners(
-        element.get('corners', "all" if 'radius' in element else "")
-    )
+    fill = ctx.colors.resolve(element.get("fill"))
+    outline = ctx.colors.resolve(element.get("outline", "black"))
+    width = element.get("width", 1)
+    radius = element.get("radius", 10 if "corners" in element else 0)
+    corners = get_rounded_corners(element.get("corners", "all" if "radius" in element else ""))
 
-    max_y = element['y_start']
+    max_y = element["y_start"]
 
     # Draw rectangle grid
     for x in range(element["x_repeat"]):
         for y in range(element["y_repeat"]):
             # Calculate rectangle position
-            x_pos = element['x_start'] + x * (element['x_offset'] + element['x_size'])
-            y_pos = element['y_start'] + y * (element['y_offset'] + element['y_size'])
+            x_pos = element["x_start"] + x * (element["x_offset"] + element["x_size"])
+            y_pos = element["y_start"] + y * (element["y_offset"] + element["y_size"])
 
             # Draw individual rectangle
             draw.rounded_rectangle(
-                (x_pos, y_pos,
-                 x_pos + element['x_size'],
-                 y_pos + element['y_size']),
+                (x_pos, y_pos, x_pos + element["x_size"], y_pos + element["y_size"]),
                 fill=fill,
                 outline=outline,
                 width=width,
                 radius=radius,
-                corners=corners
+                corners=corners,
             )
 
-            max_y = max(max_y, y_pos + element['y_size'])
+            max_y = max(max_y, y_pos + element["y_size"])
 
     ctx.pos_y = max_y
 
 
 @element_handler(ElementType.POLYGON, requires=["points"])
-async def draw_polygon(ctx: DrawingContext, element: dict) -> None:
+async def draw_polygon(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw a polygon.
 
     Renders a polygon defined by a list of vertex coordinates.
@@ -167,10 +152,7 @@ async def draw_polygon(ctx: DrawingContext, element: dict) -> None:
     draw = ImageDraw.Draw(ctx.img)
 
     # Parse vertices
-    vertices = [
-        (ctx.coords.parse_x(x), ctx.coords.parse_y(y))
-        for x, y in element["points"]
-    ]
+    vertices = [(ctx.coords.parse_x(x), ctx.coords.parse_y(y)) for x, y in element["points"]]
 
     # Get polygon properties
     fill = ctx.colors.resolve(element.get("fill"))
@@ -185,7 +167,7 @@ async def draw_polygon(ctx: DrawingContext, element: dict) -> None:
 
 
 @element_handler(ElementType.CIRCLE, requires=["x", "y", "radius"])
-async def draw_circle(ctx: DrawingContext, element: dict) -> None:
+async def draw_circle(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw circle element.
 
     Renders a circle with options for fill and outline.
@@ -197,27 +179,27 @@ async def draw_circle(ctx: DrawingContext, element: dict) -> None:
     draw = ImageDraw.Draw(ctx.img)
 
     # Coordinates
-    x = ctx.coords.parse_x(element['x'])
-    y = ctx.coords.parse_y(element['y'])
+    x = ctx.coords.parse_x(element["x"])
+    y = ctx.coords.parse_y(element["y"])
 
     # Get circle properties
-    fill = ctx.colors.resolve(element.get('fill'))
-    outline = ctx.colors.resolve(element.get('outline', "black"))
-    width = element.get('width', 1)
+    fill = ctx.colors.resolve(element.get("fill"))
+    outline = ctx.colors.resolve(element.get("outline", "black"))
+    width = element.get("width", 1)
 
     # Draw circle
     draw.ellipse(
-        [(x - element['radius'], y - element['radius']), (x + element['radius'], y + element['radius'])],
+        [(x - element["radius"], y - element["radius"]), (x + element["radius"], y + element["radius"])],
         fill=fill,
         outline=outline,
-        width=width
+        width=width,
     )
 
-    ctx.pos_y = y + element['radius']
+    ctx.pos_y = y + element["radius"]
 
 
 @element_handler(ElementType.ELLIPSE, requires=["x_start", "x_end", "y_start", "y_end"])
-async def draw_ellipse(ctx: DrawingContext, element: dict) -> None:
+async def draw_ellipse(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """
     Draw ellipse element.
 
@@ -230,29 +212,24 @@ async def draw_ellipse(ctx: DrawingContext, element: dict) -> None:
     draw = ImageDraw.Draw(ctx.img)
 
     # Coordinates
-    x_start = ctx.coords.parse_x(element['x_start'])
-    x_end = ctx.coords.parse_x(element['x_end'])
-    y_start = ctx.coords.parse_y(element['y_start'])
-    y_end = ctx.coords.parse_y(element['y_end'])
+    x_start = ctx.coords.parse_x(element["x_start"])
+    x_end = ctx.coords.parse_x(element["x_end"])
+    y_start = ctx.coords.parse_y(element["y_start"])
+    y_end = ctx.coords.parse_y(element["y_end"])
 
     # Get ellipse properties
-    fill = ctx.colors.resolve(element.get('fill'))
-    outline = ctx.colors.resolve(element.get('outline', "black"))
-    width = element.get('width', 1)
+    fill = ctx.colors.resolve(element.get("fill"))
+    outline = ctx.colors.resolve(element.get("outline", "black"))
+    width = element.get("width", 1)
 
     # Draw ellipse
-    draw.ellipse(
-        [(x_start, y_start), (x_end, y_end)],
-        fill=fill,
-        outline=outline,
-        width=width
-    )
+    draw.ellipse([(x_start, y_start), (x_end, y_end)], fill=fill, outline=outline, width=width)
 
     ctx.pos_y = y_end
 
 
 @element_handler(ElementType.ARC, requires=["x", "y", "radius", "start_angle", "end_angle"])
-async def draw_arc(ctx: DrawingContext, element: dict) -> None:
+async def draw_arc(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw an arc or pie slice.
 
     Renders an arc (outline) or pie slice (filled) based on center point,
@@ -274,10 +251,7 @@ async def draw_arc(ctx: DrawingContext, element: dict) -> None:
     end_angle = element["end_angle"]
 
     # Calculate bounding box of the circle/ellipse
-    bbox = [
-        (x - radius, y - radius),
-        (x + radius, y + radius)
-    ]
+    bbox = [(x - radius, y - radius), (x + radius, y + radius)]
 
     # Get arc properties
     fill = ctx.colors.resolve(element.get("fill"))  # Used for pie slices
@@ -287,35 +261,23 @@ async def draw_arc(ctx: DrawingContext, element: dict) -> None:
     # Draw the arc
     if fill:
         # Filled pie slice
-        draw.pieslice(
-            bbox,
-            start=start_angle,
-            end=end_angle,
-            fill=fill,
-            outline=outline
-        )
+        draw.pieslice(bbox, start=start_angle, end=end_angle, fill=fill, outline=outline)
     else:
         # Outline-only arc
-        draw.arc(
-            bbox,
-            start=start_angle,
-            end=end_angle,
-            fill=outline,
-            width=width
-        )
+        draw.arc(bbox, start=start_angle, end=end_angle, fill=outline, width=width)
 
     ctx.pos_y = y + radius
 
 
-
-def draw_dashed_line(draw: ImageDraw.ImageDraw,
-                      start: tuple[int, int],
-                      end: tuple[int, int],
-                      dash_length: int,
-                      space_length: int,
-                      fill: tuple[int, int, int, int] = BLACK,
-                      width: int = 1,
-                      ) -> None:
+def draw_dashed_line(
+    draw: ImageDraw.ImageDraw,
+    start: tuple[int, int],
+    end: tuple[int, int],
+    dash_length: int,
+    space_length: int,
+    fill: tuple[int, int, int, int] = BLACK,
+    width: int = 1,
+) -> None:
     """Draw dashed line.
 
     Renders a dashed line between two points by drawing alternating
@@ -335,7 +297,7 @@ def draw_dashed_line(draw: ImageDraw.ImageDraw,
 
     dx = x2 - x1
     dy = y2 - y1
-    line_length = (dx ** 2 + dy ** 2) ** 0.5
+    line_length = (dx**2 + dy**2) ** 0.5
 
     step_x = dx / line_length
     step_y = dy / line_length
@@ -356,11 +318,7 @@ def draw_dashed_line(draw: ImageDraw.ImageDraw,
             segment_end_x = x1 + step_x * dash_end
             segment_end_y = y1 + step_y * dash_end
 
-            draw.line(
-                [(segment_start_x, segment_start_y), (segment_end_x, segment_end_y)],
-                fill=fill,
-                width=width
-            )
+            draw.line([(segment_start_x, segment_start_y), (segment_end_x, segment_end_y)], fill=fill, width=width)
             # Process is done because the end of the line has been reached
             break
         else:
@@ -370,11 +328,7 @@ def draw_dashed_line(draw: ImageDraw.ImageDraw,
             segment_end_x = x1 + step_x * dash_end
             segment_end_y = y1 + step_y * dash_end
 
-            draw.line(
-                [(segment_start_x, segment_start_y), (segment_end_x, segment_end_y)],
-                fill=fill,
-                width=width
-            )
+            draw.line([(segment_start_x, segment_start_y), (segment_end_x, segment_end_y)], fill=fill, width=width)
 
             # 2) Move current_pos forward past this dash
             current_pos = dash_end
@@ -404,12 +358,7 @@ def get_rounded_corners(corner_string: str) -> tuple[bool, bool, bool, bool]:
         return True, True, True, True
 
     corners = corner_string.split(",")
-    corner_map = {
-        "top_left": 0,
-        "top_right": 1,
-        "bottom_right": 2,
-        "bottom_left": 3
-    }
+    corner_map = {"top_left": 0, "top_right": 1, "bottom_right": 2, "bottom_left": 3}
 
     result = [False] * 4
     for corner in corners:

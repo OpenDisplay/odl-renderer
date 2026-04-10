@@ -8,22 +8,23 @@ from tests.builders import ElementBuilder as E
 class TestRectangleRendering:
     """Test rectangle element rendering."""
 
-    @pytest.mark.parametrize("color,expected_rgb", [
-        ("black", (0, 0, 0)),
-        ("white", (255, 255, 255)),
-        ("red", (255, 0, 0)),
-        ("yellow", (255, 255, 0)),
-        ("#FF0000", (255, 0, 0)),
-        ("#00FF00", (0, 255, 0)),
-        ("#0000FF", (0, 0, 255)),
-        ("#F00", (255, 0, 0)),
-    ])
+    @pytest.mark.parametrize(
+        "color,expected_rgb",
+        [
+            ("black", (0, 0, 0)),
+            ("white", (255, 255, 255)),
+            ("red", (255, 0, 0)),
+            ("yellow", (255, 255, 0)),
+            ("#FF0000", (255, 0, 0)),
+            ("#00FF00", (0, 255, 0)),
+            ("#0000FF", (0, 0, 255)),
+            ("#F00", (255, 0, 0)),
+        ],
+    )
     async def test_filled_rectangle_colors(self, color, expected_rgb):
         """Test filled rectangle with various color formats."""
         image = await generate_image(
-            width=100,
-            height=100,
-            elements=[E.rectangle(x_start=0, y_start=0, x_end=100, y_end=100, fill=color)]
+            width=100, height=100, elements=[E.rectangle(x_start=0, y_start=0, x_end=100, y_end=100, fill=color)]
         )
 
         # Sample center pixel
@@ -36,7 +37,7 @@ class TestRectangleRendering:
             width=100,
             height=100,
             background="white",
-            elements=[E.rectangle(x_start=20, y_start=20, x_end=80, y_end=80, outline="black", width=2)]
+            elements=[E.rectangle(x_start=20, y_start=20, x_end=80, y_end=80, outline="black", width=2)],
         )
 
         # Outline pixel should be black
@@ -47,17 +48,20 @@ class TestRectangleRendering:
         inside_pixel = image.getpixel((50, 50))
         assert inside_pixel[:3] == (255, 255, 255)
 
-    @pytest.mark.parametrize("x_start,y_start,x_end,y_end", [
-        (0, 0, 50, 50),
-        (25, 25, 75, 75),
-        (10, 20, 90, 80),
-    ])
+    @pytest.mark.parametrize(
+        "x_start,y_start,x_end,y_end",
+        [
+            (0, 0, 50, 50),
+            (25, 25, 75, 75),
+            (10, 20, 90, 80),
+        ],
+    )
     async def test_rectangle_positions(self, x_start, y_start, x_end, y_end):
         """Test rectangles at various positions."""
         image = await generate_image(
             width=100,
             height=100,
-            elements=[E.rectangle(x_start=x_start, y_start=y_start, x_end=x_end, y_end=y_end, fill="black")]
+            elements=[E.rectangle(x_start=x_start, y_start=y_start, x_end=x_end, y_end=y_end, fill="black")],
         )
 
         # Center of rectangle should be black
@@ -74,7 +78,7 @@ class TestRectangleRendering:
             elements=[
                 E.rectangle(x_start=0, y_start=0, x_end=100, y_end=100, fill="red"),
                 E.rectangle(x_start=50, y_start=50, x_end=150, y_end=150, fill="blue"),
-            ]
+            ],
         )
 
         # First rectangle area (not overlapped) should be red
@@ -89,6 +93,7 @@ class TestRectangleRendering:
     async def test_rectangle_debug_multiple(self):
         """Debug test to see if multiple rectangles render."""
         import logging
+
         logging.basicConfig(level=logging.DEBUG)
 
         image = await generate_image(
@@ -98,7 +103,7 @@ class TestRectangleRendering:
             elements=[
                 E.rectangle(x_start=0, y_start=0, x_end=100, y_end=100, fill="red"),
                 E.rectangle(x_start=50, y_start=50, x_end=150, y_end=150, fill="blue"),
-            ]
+            ],
         )
 
         # Save for visual inspection

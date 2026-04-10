@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
-import qrcode
+import qrcode  # type: ignore[import-untyped]
 from PIL import Image
-from resizeimage import resizeimage
+from resizeimage import resizeimage  # type: ignore[import-untyped]
 
+from drawcustom.colors import BLACK
 from drawcustom.media_loader import load_image
 from drawcustom.registry import element_handler
 from drawcustom.types import DrawingContext, ElementType
@@ -14,7 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @element_handler(ElementType.QRCODE, requires=["x", "y", "data"])
-async def draw_qrcode(ctx: DrawingContext, element: dict) -> None:
+async def draw_qrcode(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw QR code element.
 
     Generates and renders a QR code with the specified data and properties.
@@ -33,14 +35,14 @@ async def draw_qrcode(ctx: DrawingContext, element: dict) -> None:
         ValueError: If QR code generation fails
     """
     # Coordinates
-    x = ctx.coords.parse_x(element['x'])
-    y = ctx.coords.parse_y(element['y'])
+    x = ctx.coords.parse_x(element["x"])
+    y = ctx.coords.parse_y(element["y"])
 
     # Get QR code properties
-    color = ctx.colors.resolve(element.get('color', "black"))
-    bgcolor = ctx.colors.resolve(element.get('bgcolor', "white"))
-    border = element.get('border', 1)
-    boxsize = element.get('boxsize', 2)
+    color = ctx.colors.resolve(element.get("color", "black")) or BLACK
+    bgcolor = ctx.colors.resolve(element.get("bgcolor", "white")) or BLACK
+    border = element.get("border", 1)
+    boxsize = element.get("boxsize", 2)
 
     try:
         # Create QR code instance
@@ -52,7 +54,7 @@ async def draw_qrcode(ctx: DrawingContext, element: dict) -> None:
         )
 
         # Add data and generate QR code
-        qr.add_data(element['data'])
+        qr.add_data(element["data"])
         qr.make(fit=True)
 
         # Create QR code image (convert RGBA to RGB for fill/back colors)
@@ -70,7 +72,7 @@ async def draw_qrcode(ctx: DrawingContext, element: dict) -> None:
 
 
 @element_handler(ElementType.DLIMG, requires=["x", "y", "url", "xsize", "ysize"])
-async def draw_downloaded_image(ctx: DrawingContext, element: dict) -> None:
+async def draw_downloaded_image(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw downloaded or local image.
 
     Loads and renders an image from various sources (HTTP URL, file path,
@@ -95,16 +97,16 @@ async def draw_downloaded_image(ctx: DrawingContext, element: dict) -> None:
     """
     try:
         # Get image properties
-        pos_x = ctx.coords.parse_x(element['x'])
-        pos_y = ctx.coords.parse_y(element['y'])
-        target_size = (element['xsize'], element['ysize'])
-        rotate = element.get('rotate', 0)
-        resize_method = element.get('resize_method', 'stretch')
+        pos_x = ctx.coords.parse_x(element["x"])
+        pos_y = ctx.coords.parse_y(element["y"])
+        target_size = (element["xsize"], element["ysize"])
+        rotate = element.get("rotate", 0)
+        resize_method = element.get("resize_method", "stretch")
 
         # Load image using media_loader
         # Pass session from context if available (for HA integration efficiency)
-        session = getattr(ctx, 'session', None)
-        source_img = await load_image(element['url'], session=session)
+        session = getattr(ctx, "session", None)
+        source_img = await load_image(element["url"], session=session)
 
         # Process image
         if rotate:
@@ -112,12 +114,10 @@ async def draw_downloaded_image(ctx: DrawingContext, element: dict) -> None:
 
         # Resize if needed
         if source_img.size != target_size:
-            if resize_method in ['crop', 'cover', 'contain']:
+            if resize_method in ["crop", "cover", "contain"]:
                 source_img = resizeimage.resize(resize_method, source_img, target_size)
-            elif resize_method != 'stretch':
-                _LOGGER.warning(
-                    f"Unsupported resize_method '{resize_method}', using stretch resize"
-                )
+            elif resize_method != "stretch":
+                _LOGGER.warning(f"Unsupported resize_method '{resize_method}', using stretch resize")
 
             # Final resize to ensure exact target size
             if source_img.size != target_size:

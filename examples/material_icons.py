@@ -1,5 +1,5 @@
-"""Material Design Icons example.
-  """
+"""Material Design Icons example."""
+
 import asyncio
 
 from drawcustom import generate_image
@@ -7,7 +7,6 @@ from drawcustom import generate_image
 
 async def main():
     """Generate an image with Material Design Icons."""
-
 
     image = await generate_image(
         width=296,

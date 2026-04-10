@@ -1,4 +1,5 @@
 """Drawcustom - Pure image rendering from drawing instructions."""
+
 from .colors import BLACK, BLUE, GREEN, HALF_BLACK, HALF_RED, HALF_YELLOW, RED, WHITE, YELLOW, ColorResolver
 from .coordinates import CoordinateParser
 from .core import generate_image, should_show_element
@@ -24,5 +25,5 @@ __all__ = [
     "HALF_RED",
     "HALF_YELLOW",
     "BLUE",
-    "GREEN"
+    "GREEN",
 ]

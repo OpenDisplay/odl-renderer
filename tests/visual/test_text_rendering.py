@@ -13,9 +13,7 @@ class TestTextVisualRegression:
     async def test_basic_text(self, snapshot_png, ppb_font):
         """Test basic text rendering matches snapshot."""
         image = await generate_image(
-            width=200,
-            height=100,
-            elements=[E.text("Hello, World!", x=10, y=50, font=ppb_font, size=24, color="black")]
+            width=200, height=100, elements=[E.text("Hello, World!", x=10, y=50, font=ppb_font, size=24, color="black")]
         )
 
         buffer = BytesIO()
@@ -32,7 +30,7 @@ class TestTextVisualRegression:
                 E.text("Blue", x=10, y=60, font=ppb_font, size=20, color="blue"),
                 E.text("Green", x=10, y=100, font=ppb_font, size=20, color="green"),
                 E.text("Black", x=10, y=140, font=ppb_font, size=20, color="black"),
-            ]
+            ],
         )
 
         buffer = BytesIO()
@@ -45,7 +43,7 @@ class TestTextVisualRegression:
         image = await generate_image(
             width=200,
             height=100,
-            elements=[E.text(f"Size {size}", x=10, y=50, font=ppb_font, size=size, color="black")]
+            elements=[E.text(f"Size {size}", x=10, y=50, font=ppb_font, size=size, color="black")],
         )
 
         buffer = BytesIO()

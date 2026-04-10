@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+from typing import Any
+
 from PIL import ImageDraw
 
+from ..colors import BLACK
 from ..registry import element_handler
 from ..types import DrawingContext, ElementType
 from .shapes import draw_dashed_line
 
 
 @element_handler(ElementType.DEBUG_GRID)
-async def draw_debug_grid(ctx: DrawingContext, element: dict) -> None:
+async def draw_debug_grid(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """
     Draw debug grid for layout assistance.
 
@@ -23,7 +26,7 @@ async def draw_debug_grid(ctx: DrawingContext, element: dict) -> None:
     width, height = ctx.img.size
 
     spacing = element.get("spacing", 20)
-    line_color = ctx.colors.resolve(element.get("line_color", "black"))
+    line_color = ctx.colors.resolve(element.get("line_color", "black")) or BLACK
     dashed = element.get("dashed", True)
     dash_length = element.get("dash_length", 2)
     space_length = element.get("space_length", 4)
@@ -36,17 +39,9 @@ async def draw_debug_grid(ctx: DrawingContext, element: dict) -> None:
     font = ctx.fonts.get_font(font_name, label_font_size)
 
     # Helper to draw one line as dashed or solid
-    def draw_line_segment(p1, p2):
+    def draw_line_segment(p1: tuple[int, int], p2: tuple[int, int]) -> None:
         if dashed:
-            draw_dashed_line(
-                draw,
-                p1,
-                p2,
-                dash_length,
-                space_length,
-                fill=line_color,
-                width=1
-            )
+            draw_dashed_line(draw, p1, p2, dash_length, space_length, fill=line_color, width=1)
         else:
             draw.line([p1, p2], fill=line_color, width=1)
 

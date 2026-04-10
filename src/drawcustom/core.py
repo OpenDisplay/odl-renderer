@@ -19,12 +19,12 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def generate_image(
-        width: int,
-        height: int,
-        elements: list[dict[str, Any]],
-        background: str = "white",
-        accent_color: str = "red",
-        session: aiohttp.ClientSession | None = None,
+    width: int,
+    height: int,
+    elements: list[dict[str, Any]],
+    background: str = "white",
+    accent_color: str = "red",
+    session: aiohttp.ClientSession | None = None,
 ) -> Image.Image:
     """Generate image from drawing instructions.
 
@@ -60,7 +60,7 @@ async def generate_image(
     fonts = FontManager()
 
     # Create base image
-    img = Image.new('RGBA', (width, height), color=colors.resolve(background))
+    img = Image.new("RGBA", (width, height), color=colors.resolve(background))
 
     # Create drawing context
     ctx = DrawingContext(
@@ -69,14 +69,11 @@ async def generate_image(
         coords=CoordinateParser(img.width, img.height),
         fonts=fonts,
         session=session,  # Pass session for HTTP image loading
-        pos_y=0
+        pos_y=0,
     )
 
     # Get all registered handlers
-    draw_handlers = {
-        element_type: handler
-        for element_type, (handler, _) in get_all_handlers().items()
-    }
+    draw_handlers = {element_type: handler for element_type, (handler, _) in get_all_handlers().items()}
 
     # Process each element
     for i, element in enumerate(elements):
@@ -112,7 +109,7 @@ async def generate_image(
     return img
 
 
-def should_show_element(element: dict) -> bool:
+def should_show_element(element: dict[str, Any]) -> bool:
     """Check if an element should be displayed.
 
     Elements can be hidden by setting visible=False in their definition.
@@ -124,4 +121,4 @@ def should_show_element(element: dict) -> bool:
     Returns:
         bool: True if the element should be displayed, False otherwise
     """
-    return element.get("visible", True)
+    return bool(element.get("visible", True))

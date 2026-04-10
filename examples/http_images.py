@@ -1,4 +1,5 @@
 """HTTP image loading example."""
+
 import asyncio
 
 import aiohttp

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 from PIL import ImageDraw, ImageFont
 
@@ -13,7 +13,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @element_handler(ElementType.TEXT, requires=["x", "value"])
-async def draw_text(ctx: DrawingContext, element: dict) -> None:
+async def draw_text(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw (colored) text with optional wrapping or ellipsis.
 
     Renders text with support for multiple formatting options:
@@ -31,32 +31,32 @@ async def draw_text(ctx: DrawingContext, element: dict) -> None:
     draw = ImageDraw.Draw(ctx.img)
     draw.fontmode = "1"
 
-    x = ctx.coords.parse_x(element['x'])
+    x = ctx.coords.parse_x(element["x"])
     if "y" not in element:
-        y = ctx.pos_y + element.get('y_padding', 10)
+        y = ctx.pos_y + element.get("y_padding", 10)
     else:
-        y = ctx.coords.parse_y(element['y'])
+        y = ctx.coords.parse_y(element["y"])
     # Get text properties
-    size = ctx.coords.parse_size(element.get('size', 20), is_width=False)
-    font_name = element.get('font', "ppb.ttf")
+    size = ctx.coords.parse_size(element.get("size", 20), is_width=False)
+    font_name = element.get("font", "ppb.ttf")
     font = ctx.fonts.get_font(font_name, size)
 
     # Get alignment and default color
-    align = element.get('align', "left")
-    default_color = ctx.colors.resolve(element.get('color', "black"))
-    anchor = element.get('anchor')
-    spacing = element.get('spacing', 5)
-    stroke_width = element.get('stroke_width', 0)
-    stroke_fill = ctx.colors.resolve(element.get('stroke_fill', 'white'))
+    align = element.get("align", "left")
+    default_color = ctx.colors.resolve(element.get("color", "black"))
+    anchor = element.get("anchor")
+    spacing = element.get("spacing", 5)
+    stroke_width = element.get("stroke_width", 0)
+    stroke_fill = ctx.colors.resolve(element.get("stroke_fill", "white"))
 
     # Process text content
-    text = str(element['value'])
-    max_width = element.get('max_width')
+    text = str(element["value"])
+    max_width = element.get("max_width")
 
     # Handle text wrapping if max_width is specified
     final_text = text
     if max_width is not None:
-        if element.get('truncate', False):
+        if element.get("truncate", False):
             if draw.textlength(text, font=font) > max_width:
                 ellipsis = "..."
                 truncated = text
@@ -65,45 +65,45 @@ async def draw_text(ctx: DrawingContext, element: dict) -> None:
                 final_text = truncated + ellipsis
         else:
             words = text.split()
-            lines = []
-            current_line = []
+            lines: list[str] = []
+            current_line: list[str] = []
 
             for word in words:
-                test_line = ' '.join(current_line + [word])
+                test_line = " ".join(current_line + [word])
                 if not current_line or draw.textlength(test_line, font=font) <= max_width:
                     current_line.append(word)
                 else:
-                    lines.append(' '.join(current_line))
+                    lines.append(" ".join(current_line))
                     current_line = [word]
 
             if current_line:
-                lines.append(' '.join(current_line))
-            final_text = '\n'.join(lines)
+                lines.append(" ".join(current_line))
+            final_text = "\n".join(lines)
 
     # Set appropriate anchor based on line count
     if not anchor:
-        anchor = 'la' if '\n' in final_text else 'lt'
+        anchor = "la" if "\n" in final_text else "lt"
 
     # Draw the text
-    if element.get('parse_colors', False):
+    if element.get("parse_colors", False):
         segments = parse_colored_text(final_text)
 
         # Check if text contains newlines
-        has_newlines = '\n' in final_text
+        has_newlines = "\n" in final_text
 
         if has_newlines:
             # Split text into lines
-            lines = split_segments_by_newlines(segments)
+            seg_lines = split_segments_by_newlines(segments)
 
             # Calculate vertical positions
-            line_y_positions, total_height = calculate_multiline_positions(lines, font, spacing)
+            line_y_positions, total_height = calculate_multiline_positions(seg_lines, font, spacing)
 
             # Apply vertical anchor offset to the entire block
             adjusted_y = calculate_anchor_offset_y(y, total_height, anchor)
 
             # Draw each line
             max_y = adjusted_y
-            for line_segments, line_y_offset in zip(lines, line_y_positions):
+            for line_segments, line_y_offset in zip(seg_lines, line_y_positions):
                 # Calculate horizontal positions for this line
                 line_segments, line_width = calculate_segment_positions(line_segments, font, x, align, anchor)
 
@@ -113,12 +113,7 @@ async def draw_text(ctx: DrawingContext, element: dict) -> None:
                 # Draw each segment in the line
                 for segment in line_segments:
                     color = ctx.colors.resolve(segment.color)
-                    bbox = draw.textbbox(
-                        (segment.start_x, line_y),
-                        segment.text,
-                        font=font,
-                        anchor="lt"
-                    )
+                    bbox = draw.textbbox((segment.start_x, line_y), segment.text, font=font, anchor="lt")
                     draw.text(
                         (segment.start_x, line_y),
                         segment.text,
@@ -127,14 +122,12 @@ async def draw_text(ctx: DrawingContext, element: dict) -> None:
                         anchor="lt",
                         spacing=spacing,
                         stroke_width=stroke_width,
-                        stroke_fill=stroke_fill
+                        stroke_fill=stroke_fill,
                     )
-                    max_y = max(max_y, bbox[3])
+                    max_y = max(max_y, int(bbox[3]))
             ctx.pos_y = max_y
         else:
-            segments, total_width = calculate_segment_positions(
-                segments, font, x, align, anchor
-            )
+            segments, total_width = calculate_segment_positions(segments, font, x, align, anchor)
 
             max_y = y
             for segment in segments:
@@ -153,19 +146,12 @@ async def draw_text(ctx: DrawingContext, element: dict) -> None:
                     anchor="lt",
                     spacing=spacing,
                     stroke_width=stroke_width,
-                    stroke_fill=stroke_fill
+                    stroke_fill=stroke_fill,
                 )
-                max_y = max(max_y, bbox[3])
+                max_y = max(max_y, int(bbox[3]))
             ctx.pos_y = max_y
     else:
-        bbox = draw.textbbox(
-            (x, y),
-            final_text,
-            font=font,
-            anchor=anchor,
-            spacing=spacing,
-            align=align
-        )
+        bbox = draw.textbbox((x, y), final_text, font=font, anchor=anchor, spacing=spacing, align=align)
         draw.text(
             (x, y),
             final_text,
@@ -175,13 +161,13 @@ async def draw_text(ctx: DrawingContext, element: dict) -> None:
             align=align,
             spacing=spacing,
             stroke_width=stroke_width,
-            stroke_fill=stroke_fill
+            stroke_fill=stroke_fill,
         )
-        ctx.pos_y = bbox[3]
+        ctx.pos_y = int(bbox[3])
 
 
 @element_handler(ElementType.MULTILINE, requires=["x", "value", "delimiter", "offset_y"])
-async def draw_multiline(ctx: DrawingContext, element: dict) -> None:
+async def draw_multiline(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw multiline text with delimiter.
 
     Renders multiple lines of text separated by a delimiter character.
@@ -195,43 +181,36 @@ async def draw_multiline(ctx: DrawingContext, element: dict) -> None:
     draw.fontmode = "1"
 
     # Get text properties
-    size = element.get('size', 20)
-    font_name = element.get('font', "ppb.ttf")
+    size = element.get("size", 20)
+    font_name = element.get("font", "ppb.ttf")
     font = ctx.fonts.get_font(font_name, size)
-    color = ctx.colors.resolve(element.get('color', "black"))
-    align = element.get('align', "left")
-    anchor = element.get('anchor', "lm")
-    stroke_width = element.get('stroke_width', 0)
-    stroke_fill = ctx.colors.resolve(element.get('stroke_fill', 'white'))
+    color = ctx.colors.resolve(element.get("color", "black"))
+    align = element.get("align", "left")
+    anchor = element.get("anchor", "lm")
+    stroke_width = element.get("stroke_width", 0)
+    stroke_fill = ctx.colors.resolve(element.get("stroke_fill", "white"))
 
-    x = ctx.coords.parse_x(element['x'])
+    x = ctx.coords.parse_x(element["x"])
     # Support both 'y' (standard) and 'start_y' (legacy) for backward compatibility
     if "y" in element:
-        current_y = ctx.coords.parse_y(element['y'])
+        current_y = ctx.coords.parse_y(element["y"])
     elif "start_y" in element:
-        current_y = ctx.coords.parse_y(element['start_y'])
+        current_y = ctx.coords.parse_y(element["start_y"])
     else:
-        current_y = ctx.pos_y + element.get('y_padding', 10)
+        current_y = ctx.pos_y + element.get("y_padding", 10)
 
     # Split text using delimiter
-    lines = element['value'].replace("\n", "").split(element["delimiter"])
+    lines = element["value"].replace("\n", "").split(element["delimiter"])
 
     max_y = current_y
     for line in lines:
-        if element.get('parse_colors', False):
+        if element.get("parse_colors", False):
             segments = parse_colored_text(str(line))
-            segments, total_width = calculate_segment_positions(
-                segments, font, x, align, anchor
-            )
+            segments, total_width = calculate_segment_positions(segments, font, x, align, anchor)
 
             for segment in segments:
                 color = ctx.colors.resolve(segment.color)
-                draw.textbbox(
-                    (segment.start_x, current_y),
-                    segment.text,
-                    font=font,
-                    anchor="lt"
-                )
+                draw.textbbox((segment.start_x, current_y), segment.text, font=font, anchor="lt")
                 draw.text(
                     (segment.start_x, current_y),
                     segment.text,
@@ -239,16 +218,10 @@ async def draw_multiline(ctx: DrawingContext, element: dict) -> None:
                     font=font,
                     anchor="lt",
                     stroke_width=stroke_width,
-                    stroke_fill=stroke_fill
+                    stroke_fill=stroke_fill,
                 )
         else:
-            draw.textbbox(
-                (x, current_y),
-                str(line),
-                font=font,
-                anchor=anchor,
-                align=align
-            )
+            draw.textbbox((x, current_y), str(line), font=font, anchor=anchor, align=align)
             draw.text(
                 (x, current_y),
                 str(line),
@@ -256,9 +229,9 @@ async def draw_multiline(ctx: DrawingContext, element: dict) -> None:
                 font=font,
                 anchor=anchor,
                 stroke_width=stroke_width,
-                stroke_fill=stroke_fill
+                stroke_fill=stroke_fill,
             )
-        current_y += element['offset_y']
+        current_y += element["offset_y"]
         max_y = current_y
 
     ctx.pos_y = max_y
@@ -277,14 +250,14 @@ def get_wrapped_text(text: str, font: ImageFont.ImageFont, line_length: int) -> 
     Returns:
         str: Text with newlines inserted for wrapping
     """
-    lines = ['']
+    lines = [""]
     for word in text.split():
-        line = f'{lines[-1]} {word}'.strip()
+        line = f"{lines[-1]} {word}".strip()
         if font.getlength(line) <= line_length:
             lines[-1] = line
         else:
             lines.append(word)
-    return '\n'.join(lines)
+    return "\n".join(lines)
 
 
 def parse_colored_text(text: str) -> List[TextSegment]:
@@ -303,44 +276,32 @@ def parse_colored_text(text: str) -> List[TextSegment]:
     segments = []
     current_pos = 0
     pattern = (
-        r'\[(black|b|white|w|red|r|yellow|y|blue|bl|green|gr|g|accent|a|'
-        r'half_black|half_white|half_red|half_yellow|half_accent|gray|grey|'
-        r'hb|hw|hr|hy|ha|#[0-9A-Fa-f]{3}|#[0-9A-Fa-f]{6})\](.*?)\[/\1\]'
+        r"\[(black|b|white|w|red|r|yellow|y|blue|bl|green|gr|g|accent|a|"
+        r"half_black|half_white|half_red|half_yellow|half_accent|gray|grey|"
+        r"hb|hw|hr|hy|ha|#[0-9A-Fa-f]{3}|#[0-9A-Fa-f]{6})\](.*?)\[/\1\]"
     )
 
     for match in re.finditer(pattern, text, re.DOTALL):
         # Add any text before the match with default color
         if match.start() > current_pos:
-            segments.append(
-                TextSegment(
-                    text=text[current_pos:match.start()],
-                    color="black"
-                ))
+            segments.append(TextSegment(text=text[current_pos : match.start()], color="black"))
         # Add the matched text with the specified color
-        segments.append(
-            TextSegment(
-                text=match.group(2),
-                color=match.group(1)
-            )
-        )
+        segments.append(TextSegment(text=match.group(2), color=match.group(1)))
         current_pos = match.end()
 
     # Add any remaining text with default color
     if current_pos < len(text):
-        segments.append(TextSegment(
-            text=text[current_pos:],
-            color="black"
-        ))
+        segments.append(TextSegment(text=text[current_pos:], color="black"))
 
     return segments
 
 
 def calculate_segment_positions(
-        segments: List[TextSegment],
-        font: ImageFont.FreeTypeFont,
-        start_x: int,
-        alignment: str = "left",
-        anchor: str | None = None
+    segments: List[TextSegment],
+    font: ImageFont.FreeTypeFont,
+    start_x: int,
+    alignment: str = "left",
+    anchor: str | None = None,
 ) -> Tuple[List[TextSegment], float]:
     """Calculate x positions for each text segment based on alignment.
 
@@ -360,7 +321,7 @@ def calculate_segment_positions(
 
     total_width = sum(font.getlength(segment.text) for segment in segments)
 
-    current_x = start_x
+    current_x: float = start_x
     match alignment.lower():
         case "left":
             pass  # start_x is already correct
@@ -374,9 +335,9 @@ def calculate_segment_positions(
     # Apply anchor-based horizontal offset
     if anchor:
         anchor_horizontal = anchor[0]  # First char: l/m/r
-        if anchor_horizontal == 'm':  # Middle
+        if anchor_horizontal == "m":  # Middle
             current_x -= total_width / 2
-        elif anchor_horizontal == 'r':  # Right
+        elif anchor_horizontal == "r":  # Right
             current_x -= total_width
         # else: left anchor, no adjustment needed
 
@@ -397,15 +358,15 @@ def split_segments_by_newlines(segments: List[TextSegment]) -> List[List[TextSeg
     Returns:
         List of lines, where each line is a list of TextSegment objects.
     """
-    lines = [[]]
+    lines: list[list[TextSegment]] = [[]]
 
     for segment in segments:
-        if '\n' not in segment.text:
+        if "\n" not in segment.text:
             # No newlines, add to current line
             lines[-1].append(segment)
         else:
             # Split segments by newlines
-            parts = segment.text.split('\n')
+            parts = segment.text.split("\n")
             for i, part in enumerate(parts):
                 if part:
                     lines[-1].append(TextSegment(text=part, color=segment.color))
@@ -415,10 +376,9 @@ def split_segments_by_newlines(segments: List[TextSegment]) -> List[List[TextSeg
     # Remove empty lines
     return [line for line in lines if line]
 
+
 def calculate_multiline_positions(
-        lines: List[List[TextSegment]],
-        font: ImageFont.FreeTypeFont,
-        spacing: int
+    lines: List[List[TextSegment]], font: ImageFont.FreeTypeFont, spacing: int
 ) -> Tuple[List[int], int]:
     """
     Calculate y positions for each line and total height.
@@ -432,8 +392,8 @@ def calculate_multiline_positions(
         tuple: (list of y positions for each line, total block height)
     """
     # Get line height from font metrics
-    bbox = font.getbbox('Ay') # Use chars with ascenders/descenders
-    line_height = bbox[3] - bbox[1]
+    bbox = font.getbbox("Ay")  # Use chars with ascenders/descenders
+    line_height = int(bbox[3] - bbox[1])
 
     # Calculate y positions
     line_positions = []
@@ -462,8 +422,8 @@ def calculate_anchor_offset_y(base_y: int, total_height: int, anchor: str | None
         return base_y
 
     anchor_vertical = anchor[1]
-    if anchor_vertical == 'm':
+    if anchor_vertical == "m":
         return base_y - total_height // 2
-    elif anchor_vertical == 'b':
+    elif anchor_vertical == "b":
         return base_y - total_height
     return base_y

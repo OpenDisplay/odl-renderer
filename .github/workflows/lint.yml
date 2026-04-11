@@ -19,17 +19,20 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Set up Python
-        run: uv python install 3.11
+      - name: Ensure cache directory exists
+        run: mkdir -p ~/.cache/uv
 
       - name: Cache uv dependencies
         uses: actions/cache@v5
         with:
           path: |
             ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}-py${{ matrix.python-version }}
           restore-keys: |
             ${{ runner.os }}-uv-
+
+      - name: Set up Python
+        run: uv python install 3.11
 
       - name: Install dependencies
         run: uv sync --extra dev

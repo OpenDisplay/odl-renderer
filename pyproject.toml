@@ -28,8 +28,7 @@ dependencies = [
     "Pillow>=10.0.0",
     "qrcode[pil]>=7.4.2",
     "aiohttp>=3.8.0",
-    "resize-image>=0.4.0",
-    "pytest>=9.0.2",
+    "resize-image>=0.4.0"
 ]
 
 [project.optional-dependencies]

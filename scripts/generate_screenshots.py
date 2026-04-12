@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import aiohttp
+from PIL import ImageOps
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -90,6 +91,7 @@ async def render_element(name: str, config: dict, session: aiohttp.ClientSession
         session=session,
         data_provider=MockDataProvider(),
     )
+    image = ImageOps.expand(image, border=1, fill="black")
     image.save(OUTPUT_DIR / f"{name}.png")
     print(f"  OK  {name}.png")
 

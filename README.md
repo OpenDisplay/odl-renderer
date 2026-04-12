@@ -673,22 +673,38 @@ Time-series line chart with configurable axes, grid, and legends. Requires a `Da
 
 ```yaml
 {
-    "type": "plot",
-    "data": 
+  "type": "plot",
+  "x_start": 0,
+  "y_start": 6,
+  "x_end": 292,
+  "y_end": 120,
+  "round_values": True,
+  "data":
     [
       {
         "entity": "sensor.temperature",
-        "color": "red"
+        "color": "red",
+        "width": 2
       }
     ],
-    "yaxis":
-      {
-        "tick_every": 20
-      },
-    "xlegend": 
-      {
-        "interval": 3600
-      }
+  "yaxis":
+    {
+      "tick_every": 2,
+      "grid_color": "gray"
+    },
+  "ylegend":
+    {
+      "position": "left"
+    },
+  "xaxis":
+    {
+      "color": "black",
+      "grid": False
+    },
+  "xlegend":
+    {
+      "interval": 14400
+    }
 }
 ```
 

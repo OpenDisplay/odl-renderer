@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.5](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.4...odl-renderer-v0.5.5) (2026-04-12)
+
+
+### Documentation
+
+* add black border around each image ([15e93dc](https://github.com/OpenDisplay/odl-renderer/commit/15e93dc7901038d49d8d996898a215cdf9200eba))
+
 ## [0.5.4](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.3...odl-renderer-v0.5.4) (2026-04-12)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/g4bri3lDev/drawcustom/compare/v0.5.0...v0.5.1) (2026-04-12)
+
+
+### Bug Fixes
+
+* remove pytest from normal dependencies ([e016177](https://github.com/g4bri3lDev/drawcustom/commit/e0161773d26d917b28369bd608ddcf2eb5c6869c))
+
 ## [0.5.0](https://github.com/g4bri3lDev/drawcustom/compare/v0.4.0...v0.5.0) (2026-04-10)
 
 

@@ -252,10 +252,10 @@ Rectangle with optional fill, outline, and rounded corners.
 ```yaml
 {
     "type": "rectangle",
-    "x_start": 0,
-    "y_start": 0,
-    "x_end": "100%",
-    "y_end": 40,
+    "x_start": 10,
+    "y_start": 10,
+    "x_end": 100,
+    "y_end": 60,
     "fill": "black",
 }
 ```
@@ -318,10 +318,10 @@ Circle defined by center point and radius.
 ```yaml
 {
     "type": "circle",
-    "x": 50,
-    "y": 50,
+    "x": "50%",
+    "y": "50%",
     "radius": 20,
-    "fill": "red",
+    "fill": "green",
     "outline": "black",
 }
 ```
@@ -385,16 +385,16 @@ Arbitrary polygon defined by a list of vertices.
 
 Arc or pie slice defined by center, radius, and angle range.
 
-| Field         | Required | Default   | Notes                                         |
-|---------------|----------|-----------|-----------------------------------------------|
-| `x`           | yes      | —         | Center X                                      |
-| `y`           | yes      | —         | Center Y                                      |
-| `radius`      | yes      | —         | Radius in pixels                              |
-| `start_angle` | yes      | —         | Start angle in degrees (0 = right, clockwise) |
-| `end_angle`   | yes      | —         | End angle in degrees                          |
-| `fill`        | no       | —         | Fill color (creates a pie slice)              |
-| `outline`     | no       | `"black"` | Border color                                  |
-| `width`       | no       | `1`       | Border width                                  |
+| Field         | Required | Default   | Notes                                                 |
+|---------------|----------|-----------|-------------------------------------------------------|
+| `x`           | yes      | —         | Center X                                              |
+| `y`           | yes      | —         | Center Y                                              |
+| `radius`      | yes      | —         | Radius in pixels                                      |
+| `start_angle` | yes      | —         | Start angle in degrees (0 = right, counter-clockwise) |
+| `end_angle`   | yes      | —         | End angle in degrees                                  |
+| `fill`        | no       | —         | Fill color (creates a pie slice)                      |
+| `outline`     | no       | `"black"` | Border color                                          |
+| `width`       | no       | `1`       | Border width                                          |
 
 ```yaml
 {
@@ -405,6 +405,7 @@ Arc or pie slice defined by center, radius, and angle range.
     "start_angle": 0,
     "end_angle": 270,
     "outline": "black",
+    "fill": "half_red",
 }
 ```
 
@@ -431,10 +432,10 @@ Straight line between two points with optional dashing.
 ```yaml
 {
     "type": "line",
-    "x_start": 0,
-    "y_start": 64,
-    "x_end": "100%",
-    "y_end": 64,
+    "x_start": "10%",
+    "y_start": "50%",
+    "x_end": "90%",
+    "y_end": "50%",
     "fill": "black",
 }
 ```
@@ -494,8 +495,8 @@ Row or column of MDI icons.
 {
     "type": "icon_sequence",
     "icons": ["mdi:weather-sunny", "mdi:weather-cloudy", "mdi:weather-rainy"],
-    "x": 10,
-    "y": 10,
+    "x": 20,
+    "y": 20,
     "size": 32,
 }
 ```
@@ -525,7 +526,7 @@ Image from a URL, file path, data URI, bytes, or PIL Image object. Resized to fi
 ```yaml
 {
     "type": "dlimg",
-    "url": "https://example.com/photo.jpg",
+    "url": "https://picsum.photos/seed/odl/200/150",
     "x": 0,
     "y": 0,
     "xsize": 200,
@@ -556,8 +557,8 @@ QR code generated from any text or URL.
 {
     "type": "qrcode",
     "data": "https://opendisplay.org",
-    "x": "50%",
-    "y": "50%",
+    "x": 10,
+    "y": 10,
 }
 ```
 
@@ -589,9 +590,9 @@ Horizontal or vertical progress bar with optional percentage label.
 ```yaml
 {
     "type": "progress_bar",
-    "x_start": 10,
+    "x_start": "10%",
     "y_start": 50,
-    "x_end": 200,
+    "x_end": "90%",
     "y_end": 70,
     "progress": 72,
     "fill": "accent",
@@ -673,9 +674,21 @@ Time-series line chart with configurable axes, grid, and legends. Requires a `Da
 ```yaml
 {
     "type": "plot",
-    "data": [{"entity": "sensor.temperature", "color": "red"}],
-    "yaxis": {"tick_every": 5},
-    "xlegend": {"interval": 3600},
+    "data": 
+    [
+      {
+        "entity": "sensor.temperature",
+        "color": "red"
+      }
+    ],
+    "yaxis":
+      {
+        "tick_every": 20
+      },
+    "xlegend": 
+      {
+        "interval": 3600
+      }
 }
 ```
 
@@ -709,7 +722,7 @@ Simple bar chart with labeled axes.
 {
     "type": "diagram",
     "x": 0,
-    "height": 100,
+    "height": 128,
     "bars": {
         "values": "Mon,10;Tue,20;Wed,15",
         "color": "black",

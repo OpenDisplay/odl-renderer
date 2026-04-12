@@ -81,10 +81,6 @@ def parse_element_examples(readme: str) -> dict[str, dict]:
 
 async def render_element(name: str, config: dict, session: aiohttp.ClientSession) -> None:
     """Render a single element config to a PNG file."""
-    if config.get("type") == "dlimg" and "example.com" in config.get("url", ""):
-        config = {**config, "url": DLIMG_REAL_URL}
-
-    data_provider = MockDataProvider() if config.get("type") == "plot" else None
 
     image = await generate_image(
         width=CANVAS_WIDTH,
@@ -92,7 +88,7 @@ async def render_element(name: str, config: dict, session: aiohttp.ClientSession
         elements=[config],
         background="white",
         session=session,
-        data_provider=data_provider,
+        data_provider=MockDataProvider(),
     )
     image.save(OUTPUT_DIR / f"{name}.png")
     print(f"  OK  {name}.png")

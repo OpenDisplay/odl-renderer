@@ -189,7 +189,7 @@ Single-line text with optional wrapping, truncation, stroke, and inline color ma
 }
 ```
 
-![text example](docs/screenshots/text.png)
+![text example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/text.png)
 
 **Inline color markup** (requires `parse_colors: true`): wrap text in `[color]...[/color]` tags. Accepts all named colors, short names, and hex (`[#ff0000]red text[/#ff0000]`).
 
@@ -227,7 +227,7 @@ Fixed-line text split by a delimiter, each line placed at a fixed vertical offse
 }
 ```
 
-![multiline example](docs/screenshots/multiline.png)
+![multiline example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/multiline.png)
 
 ---
 
@@ -260,7 +260,7 @@ Rectangle with optional fill, outline, and rounded corners.
 }
 ```
 
-![rectangle example](docs/screenshots/rectangle.png)
+![rectangle example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/rectangle.png)
 
 ---
 
@@ -298,7 +298,7 @@ Repeating grid of rectangles — useful for dot matrices, grids, and decorative 
 }
 ```
 
-![rectangle_pattern example](docs/screenshots/rectangle_pattern.png)
+![rectangle_pattern example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/rectangle_pattern.png)
 
 ---
 
@@ -326,7 +326,7 @@ Circle defined by center point and radius.
 }
 ```
 
-![circle example](docs/screenshots/circle.png)
+![circle example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/circle.png)
 
 ---
 
@@ -355,7 +355,7 @@ Ellipse defined by a bounding box.
 }
 ```
 
-![ellipse example](docs/screenshots/ellipse.png)
+![ellipse example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/ellipse.png)
 
 ---
 
@@ -377,7 +377,7 @@ Arbitrary polygon defined by a list of vertices.
 }
 ```
 
-![polygon example](docs/screenshots/polygon.png)
+![polygon example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/polygon.png)
 
 ---
 
@@ -409,7 +409,7 @@ Arc or pie slice defined by center, radius, and angle range.
 }
 ```
 
-![arc example](docs/screenshots/arc.png)
+![arc example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/arc.png)
 
 ---
 
@@ -440,7 +440,7 @@ Straight line between two points with optional dashing.
 }
 ```
 
-![line example](docs/screenshots/line.png)
+![line example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/line.png)
 
 ---
 
@@ -472,7 +472,7 @@ Single MDI icon.
 }
 ```
 
-![icon example](docs/screenshots/icon.png)
+![icon example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/icon.png)
 
 ---
 
@@ -501,7 +501,7 @@ Row or column of MDI icons.
 }
 ```
 
-![icon_sequence example](docs/screenshots/icon_sequence.png)
+![icon_sequence example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/icon_sequence.png)
 
 ---
 
@@ -535,7 +535,7 @@ Image from a URL, file path, data URI, bytes, or PIL Image object. Resized to fi
 }
 ```
 
-![dlimg example](docs/screenshots/dlimg.png)
+![dlimg example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/dlimg.png)
 
 ---
 
@@ -562,7 +562,7 @@ QR code generated from any text or URL.
 }
 ```
 
-![qrcode example](docs/screenshots/qrcode.png)
+![qrcode example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/qrcode.png)
 
 ---
 
@@ -600,7 +600,7 @@ Horizontal or vertical progress bar with optional percentage label.
 }
 ```
 
-![progress_bar example](docs/screenshots/progress_bar.png)
+![progress_bar example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/progress_bar.png)
 
 ---
 
@@ -708,7 +708,7 @@ Time-series line chart with configurable axes, grid, and legends. Requires a `Da
 }
 ```
 
-![plot example](docs/screenshots/plot.png)
+![plot example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/plot.png)
 
 ---
 
@@ -746,7 +746,7 @@ Simple bar chart with labeled axes.
 }
 ```
 
-![diagram example](docs/screenshots/diagram.png)
+![diagram example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/diagram.png)
 
 ---
 
@@ -777,4 +777,4 @@ Renders a coordinate grid over the image. Useful during layout development.
 }
 ```
 
-![debug_grid example](docs/screenshots/debug_grid.png)
+![debug_grid example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/debug_grid.png)

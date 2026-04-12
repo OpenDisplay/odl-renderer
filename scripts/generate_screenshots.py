@@ -26,7 +26,7 @@ CANVAS_WIDTH = 296
 CANVAS_HEIGHT = 128
 
 ELEMENT_HEADING_RE = re.compile(r"^### `([a-z_]+)`$")
-CODE_BLOCK_RE = re.compile(r"```python\n(.*?)```", re.DOTALL)
+CODE_BLOCK_RE = re.compile(r"```yaml\n(.*?)```", re.DOTALL)
 DLIMG_REAL_URL = "https://picsum.photos/seed/odl/200/150"
 
 

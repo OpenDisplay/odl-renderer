@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "odl-renderer"
-version = "0.5.2"
+version = "0.5.3"
 description = "Pure image rendering from drawing instructions for e-paper displays"
 readme = "README.md"
 requires-python = ">=3.11"

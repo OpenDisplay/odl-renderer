@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.2...odl-renderer-v0.5.3) (2026-04-12)
+
+
+### Documentation
+
+* add generateable screenshots ([fecb2c0](https://github.com/OpenDisplay/odl-renderer/commit/fecb2c05ba049ab096323fea46d8fe18ef79641a))
+
 ## [0.5.2](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.1...odl-renderer-v0.5.2) (2026-04-12)
 
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.7](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.6...odl-renderer-v0.5.7) (2026-04-17)
+
+
+### Bug Fixes
+
+* optimize MDI metadata and add warmup() public API ([6121d86](https://github.com/OpenDisplay/odl-renderer/commit/6121d866ecda2b37bef05089c36b402500d168d9))
+
 ## [0.5.6](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.5...odl-renderer-v0.5.6) (2026-04-17)
 
 

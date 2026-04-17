@@ -19,25 +19,15 @@ from odl_renderer.types import DrawingContext, ElementType
 
 _LOGGER = logging.getLogger(__name__)
 
-# MDI icon index cache (name -> codepoint)
-_mdi_index: dict[str, str] | None = None
 
+def _build_mdi_index() -> dict[str, str]:
+    """Load and build the MDI icon index from the bundled metadata file.
 
-def _get_mdi_index() -> dict[str, str]:
-    """Get MDI icon index (cached).
-
-    Returns:
-        Dictionary mapping icon names to codepoints
-
-    Raises:
-        ValueError: If metadata cannot be loaded
+    Called once at module import time so the result is cached in the module-level
+    ``_mdi_index`` constant. This means the blocking ``open()`` happens when the
+    module is first imported (ideally in an executor) rather than during the first
+    async render request.
     """
-    global _mdi_index
-
-    if _mdi_index is not None:
-        return _mdi_index
-
-    # Load metadata
     assets_dir = Path(__file__).parent.parent / "assets"
     metadata_path = assets_dir / "materialdesignicons-webfont_meta.json"
 
@@ -47,20 +37,42 @@ def _get_mdi_index() -> dict[str, str]:
     except Exception as err:
         raise ValueError(f"Failed to load MDI metadata: {err}") from err
 
-    # Build index
-    _mdi_index = {}
+    index: dict[str, str] = {}
     for icon in metadata:
         name = icon.get("name")
         codepoint = icon.get("codepoint")
         if name and codepoint:
-            _mdi_index[name] = codepoint
-            # Index aliases too
+            index[name] = codepoint
             for alias in icon.get("aliases", []):
                 if alias:
-                    _mdi_index[alias] = codepoint
+                    index[alias] = codepoint
 
-    _LOGGER.debug(f"Loaded {len(_mdi_index)} MDI icons")
+    _LOGGER.debug("Loaded %d MDI icons", len(index))
+    return index
+
+
+# Load once at module import time — no blocking I/O during async renders.
+_mdi_index: dict[str, str] = _build_mdi_index()
+
+# Module-level font cache keyed by size — avoids reloading the TTF on every render.
+_mdi_font_cache: dict[int, ImageFont.FreeTypeFont] = {}
+
+
+def _get_mdi_index() -> dict[str, str]:
+    """Return the pre-loaded MDI icon index."""
     return _mdi_index
+
+
+def _get_mdi_font(size: int) -> ImageFont.FreeTypeFont:
+    """Return a cached FreeType font for the given size, loading it on first use."""
+    if size not in _mdi_font_cache:
+        assets_dir = Path(__file__).parent.parent / "assets"
+        font_path = assets_dir / "materialdesignicons-webfont.ttf"
+        try:
+            _mdi_font_cache[size] = ImageFont.truetype(str(font_path), size)
+        except OSError as err:
+            raise ValueError(f"Failed to load MDI font: {err}") from err
+    return _mdi_font_cache[size]
 
 
 def _render_mdi_icon(name: str, size: int, color: tuple[int, int, int, int]) -> Image.Image:
@@ -93,14 +105,8 @@ def _render_mdi_icon(name: str, size: int, color: tuple[int, int, int, int]) -> 
     except ValueError as err:
         raise ValueError(f"Invalid codepoint for icon '{name}'") from err
 
-    # Load font
-    assets_dir = Path(__file__).parent.parent / "assets"
-    font_path = assets_dir / "materialdesignicons-webfont.ttf"
-
-    try:
-        font = ImageFont.truetype(str(font_path), size)
-    except OSError as err:
-        raise ValueError(f"Failed to load MDI font: {err}") from err
+    # Load font (cached at module level — no blocking I/O after first use per size)
+    font = _get_mdi_font(size)
 
     # Render icon
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))

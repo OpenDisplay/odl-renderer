@@ -473,7 +473,7 @@ def _render_x_labels(
         rel_x = (curr_time - start) / duration
         x = round(diag.x + rel_x * (diag.width - 1))
         if diag.x <= x <= diag.x + diag.width:
-            text = curr_time.strftime(xlc.time_format)
+            text = curr_time.astimezone().strftime(xlc.time_format)
             if xlc.position == "bottom":
                 if xac.width > 0 and xac.color:
                     draw.line(

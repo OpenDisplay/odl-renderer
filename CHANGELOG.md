@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.6](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.5...odl-renderer-v0.5.6) (2026-04-17)
+
+
+### Bug Fixes
+
+* **plot:** use local timezone ([17995f0](https://github.com/OpenDisplay/odl-renderer/commit/17995f037c042c817f2fc703d5b1a11408362d86))
+
 ## [0.5.5](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.4...odl-renderer-v0.5.5) (2026-04-12)
 
 

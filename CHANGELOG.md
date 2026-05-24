@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.8](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.7...odl-renderer-v0.5.8) (2026-05-24)
+
+
+### Features
+
+* add font_dirs parameter to FontManager and generate_image ([421b2c0](https://github.com/OpenDisplay/odl-renderer/commit/421b2c0eadbc89b0712e15d6a88f8c23895498e5))
+
 ## [0.5.7](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.6...odl-renderer-v0.5.7) (2026-04-17)
 
 

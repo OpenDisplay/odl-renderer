@@ -26,6 +26,7 @@ async def generate_image(
     accent_color: str = "red",
     session: aiohttp.ClientSession | None = None,
     data_provider: DataProvider | None = None,
+    font_dirs: list[str] | None = None,
 ) -> Image.Image:
     """Generate image from drawing instructions.
 
@@ -43,6 +44,9 @@ async def generate_image(
         session: Optional aiohttp.ClientSession for HTTP image requests
                  If provided, reuses existing session (efficient for HA integration)
                  If not provided, creates temporary session for each request
+        font_dirs: Optional list of directories to search for fonts by name,
+                   in priority order, before falling back to bundled fonts.
+                   Useful for providing host-specific font locations (e.g. /config/www/fonts).
 
     Returns:
         PIL.Image.Image in RGB or RGBA mode (full color, no dithering)
@@ -58,7 +62,7 @@ async def generate_image(
 
     # Initialize components
     colors = ColorResolver(accent_color)
-    fonts = FontManager()
+    fonts = FontManager(font_dirs=font_dirs)
 
     # Create base image
     img = Image.new("RGBA", (width, height), color=colors.resolve(background))

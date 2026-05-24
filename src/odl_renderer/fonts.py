@@ -20,11 +20,18 @@ class FontManager:
     - PIL ImageFont objects (passed through)
     - Absolute file paths (loaded from disk)
     - Built-in font names (loaded from assets/)
+    - Relative names resolved against caller-supplied search directories
     """
 
-    def __init__(self) -> None:
-        """Initialize the font manager with empty cache."""
+    def __init__(self, font_dirs: list[str] | None = None) -> None:
+        """Initialize the font manager.
+
+        Args:
+            font_dirs: Optional list of directories to search for fonts by name,
+                       in priority order, before falling back to bundled assets.
+        """
         self._font_cache: Dict[Tuple[str, int], ImageFont.FreeTypeFont] = {}
+        self._font_dirs: list[str] = [d for d in (font_dirs or []) if os.path.isdir(d)]
 
     def get_font(self, font: str | ImageFont.FreeTypeFont, size: int) -> ImageFont.FreeTypeFont:
         """Get a font, loading it if necessary.
@@ -80,11 +87,20 @@ class FontManager:
             except (OSError, IOError) as err:
                 raise ValueError(f"Failed to load font from {font_spec}: {err}") from err
 
-        # Try built-in assets directory
-        # Support both "ppb" and "ppb.ttf" formats
-        font_name = font_spec if font_spec.endswith(".ttf") else f"{font_spec}.ttf"
-        asset_path = _ASSETS_DIR / font_name
+        # Normalise: support both "ppb" and "ppb.ttf" / "ppb.otf"
+        font_name = font_spec if font_spec.endswith((".ttf", ".otf")) else f"{font_spec}.ttf"
 
+        # Search caller-supplied directories first
+        for directory in self._font_dirs:
+            candidate = os.path.join(directory, font_name)
+            if os.path.isfile(candidate):
+                try:
+                    return ImageFont.truetype(candidate, size)
+                except (OSError, IOError) as err:
+                    _LOGGER.warning("Failed to load font from %s: %s", candidate, err)
+
+        # Fall back to built-in assets directory
+        asset_path = _ASSETS_DIR / font_name
         if asset_path.exists():
             try:
                 return ImageFont.truetype(str(asset_path), size)
@@ -92,9 +108,10 @@ class FontManager:
                 raise ValueError(f"Failed to load built-in font '{font_name}': {err}") from err
 
         # Font not found
+        search_hint = f", searched: {self._font_dirs}" if self._font_dirs else ""
         raise ValueError(
-            f"Font '{font_spec}' not found. "
-            f"Provide an absolute path or use a built-in font (ppb, rbm). "
+            f"Font '{font_spec}' not found{search_hint}. "
+            f"Provide an absolute path, a directory via font_dirs, or use a built-in font (ppb, rbm). "
             f"Built-in fonts are in: {_ASSETS_DIR}"
         )
 

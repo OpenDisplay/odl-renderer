@@ -14,7 +14,7 @@ Python renderer for the [OpenDisplay Language (ODL)](https://opendisplay.org/pro
 - **Pure Rendering**: No dependencies on Home Assistant or other frameworks
 - **17 Element Types**: Text, shapes, icons, QR codes, images, progress bars, and more
 - **Async/Await**: Modern async API for efficient image generation
-- **Flexible Input**: Accepts fonts as PIL objects, file paths, or built-in names
+- **Flexible Input**: Accepts fonts as PIL objects, absolute paths, built-in names, or names resolved from caller-supplied directories
 - **Full Color Output**: Returns PIL Image objects in full RGB/RGBA (caller handles dithering)
 - **Percentage-Based Coordinates**: Position elements using percentages or absolute pixels
 - **Template-Ready**: All values are plain data (templates expanded by caller)
@@ -81,6 +81,28 @@ asyncio.run(main())
 ---
 
 ## Reference
+
+### Fonts
+
+Elements that render text accept a `font` field. The following sources are tried in order:
+
+1. **PIL object** — an `ImageFont.FreeTypeFont` passed directly (returned as-is)
+2. **Absolute path** — e.g. `"/config/www/fonts/MyFont.ttf"` (loaded from disk)
+3. **`font_dirs` search** — a relative name like `"MyFont"` or `"MyFont.ttf"` resolved against the directories passed via `font_dirs` in `generate_image()`, in order
+4. **Bundled assets** — built-in names `"ppb"` (PPB) and `"rbm"` (RBM) shipped with the library
+
+**Using custom font directories:**
+
+```python
+image = await generate_image(
+    width=400,
+    height=100,
+    elements=[{"type": "text", "value": "Hi", "font": "MyFont", "size": 32}],
+    font_dirs=["/config/www/fonts", "/media/fonts"],
+)
+```
+
+`generate_image` silently skips directories that don't exist, so it's safe to pass a fixed list of candidate paths regardless of installation type.
 
 ### Colors
 

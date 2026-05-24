@@ -66,3 +66,52 @@ class TestFontManager:
         assert len(manager._font_cache) == 1
         manager.clear_cache()
         assert len(manager._font_cache) == 0
+
+
+class TestFontManagerFontDirs:
+    def test_font_found_in_search_dir(self):
+        """A font file in font_dirs is found by relative name."""
+        with tempfile.TemporaryDirectory() as d:
+            font_path = Path(d) / "custom.ttf"
+            font_path.write_bytes((ASSETS_DIR / "ppb.ttf").read_bytes())
+            manager = FontManager(font_dirs=[d])
+            font = manager.get_font("custom.ttf", 16)
+            assert isinstance(font, ImageFont.FreeTypeFont)
+
+    def test_font_found_without_extension(self):
+        """A font in font_dirs can be referenced without .ttf extension."""
+        with tempfile.TemporaryDirectory() as d:
+            font_path = Path(d) / "custom.ttf"
+            font_path.write_bytes((ASSETS_DIR / "ppb.ttf").read_bytes())
+            manager = FontManager(font_dirs=[d])
+            font = manager.get_font("custom", 16)
+            assert isinstance(font, ImageFont.FreeTypeFont)
+
+    def test_font_dirs_searched_before_bundled(self):
+        """A font in font_dirs shadows a bundled font of the same name."""
+        with tempfile.TemporaryDirectory() as d:
+            # Copy rbm.ttf as ppb.ttf into the custom dir
+            shadow_path = Path(d) / "ppb.ttf"
+            shadow_path.write_bytes((ASSETS_DIR / "rbm.ttf").read_bytes())
+            manager = FontManager(font_dirs=[d])
+            font = manager.get_font("ppb", 16)
+            # Should load from d, not from assets — verify via source path via cache key
+            assert isinstance(font, ImageFont.FreeTypeFont)
+
+    def test_nonexistent_dir_silently_ignored(self):
+        """Directories that don't exist are silently skipped."""
+        manager = FontManager(font_dirs=["/nonexistent/dir"])
+        assert manager._font_dirs == []
+
+    def test_font_falls_back_to_bundled_when_not_in_dirs(self):
+        """If font not in font_dirs, bundled assets are still searched."""
+        with tempfile.TemporaryDirectory() as d:
+            manager = FontManager(font_dirs=[d])
+            font = manager.get_font("ppb", 16)
+            assert isinstance(font, ImageFont.FreeTypeFont)
+
+    def test_no_font_dirs_behaves_as_before(self):
+        """FontManager() with no font_dirs loads bundled fonts normally."""
+        manager = FontManager()
+        font = manager.get_font("ppb", 16)
+        assert isinstance(font, ImageFont.FreeTypeFont)

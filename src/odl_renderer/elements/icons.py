@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import ImageDraw, ImageFont
 
 from odl_renderer.colors import BLACK
 from odl_renderer.registry import element_handler
@@ -64,47 +64,6 @@ def _get_mdi_font(size: int) -> ImageFont.FreeTypeFont:
     return _mdi_font_cache[size]
 
 
-def _render_mdi_icon(name: str, size: int, color: tuple[int, int, int, int]) -> Image.Image:
-    """Render MDI icon to PIL Image.
-
-    Args:
-        name: Icon name (e.g., "home", "cog")
-        size: Icon size in pixels
-        color: RGBA color tuple
-
-    Returns:
-        PIL Image with rendered icon
-
-    Raises:
-        ValueError: If icon not found or cannot be rendered
-    """
-    # Strip mdi: prefix if present
-    if name.startswith("mdi:"):
-        name = name[4:]
-
-    # Find codepoint
-    index = _get_mdi_index()
-    codepoint = index.get(name)
-    if not codepoint:
-        raise ValueError(f"Icon '{name}' not found. Search icons at https://pictogrammers.com/library/mdi/")
-
-    # Convert hex to character
-    try:
-        char = chr(int(codepoint, 16))
-    except ValueError as err:
-        raise ValueError(f"Invalid codepoint for icon '{name}'") from err
-
-    # Load font (cached at module level — no blocking I/O after first use per size)
-    font = _get_mdi_font(size)
-
-    # Render icon
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.text((size // 2, size // 2), char, font=font, fill=color, anchor="mm", fontmode="1")
-
-    return img
-
-
 @element_handler(ElementType.ICON, requires=["x", "y", "value", "size"])
 async def draw_icon(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw Material Design Icon.
@@ -118,50 +77,46 @@ async def draw_icon(ctx: DrawingContext, element: dict[str, Any]) -> None:
                 - x, y: Position (supports percentages)
                 - size: Icon size in pixels
                 - color or fill: Icon color (default: black)
-                - anchor: Positioning anchor (default: "mm")
+                - anchor: Pillow text anchor (default: "la")
+                - stroke_width: Stroke width in pixels (default: 0)
+                - stroke_fill: Stroke color (default: "white")
 
     Example:
         {"type": "icon", "value": "home", "x": 50, "y": 50, "size": 48}
     """
-    # Parse coordinates
     x = ctx.coords.parse_x(element["x"])
     y = ctx.coords.parse_y(element["y"])
 
-    # Get icon properties
     name = element["value"]
-    size = element["size"]
+    if name.startswith("mdi:"):
+        name = name[4:]
+
+    index = _get_mdi_index()
+    codepoint = index.get(name)
+    if not codepoint:
+        raise ValueError(f"Icon '{name}' not found. Search icons at https://pictogrammers.com/library/mdi/")
+    char = chr(int(codepoint, 16))
+
+    font = _get_mdi_font(element["size"])
     color = ctx.colors.resolve(element.get("color") or element.get("fill", "black")) or BLACK
-    anchor = element.get("anchor", "mm")
+    anchor = element.get("anchor", "la")
+    stroke_width = element.get("stroke_width", 0)
+    stroke_fill = ctx.colors.resolve(element.get("stroke_fill", "white"))
 
-    # Render icon
-    icon_img = _render_mdi_icon(name, size, color)
+    draw = ImageDraw.Draw(ctx.img)
+    draw.text(
+        (x, y),
+        char,
+        font=font,
+        fill=color,
+        anchor=anchor,
+        fontmode="1",
+        stroke_width=stroke_width,
+        stroke_fill=stroke_fill,
+    )
 
-    # Calculate paste position based on anchor
-    if anchor == "mm":
-        paste_x, paste_y = x - size // 2, y - size // 2
-    elif anchor == "tl":
-        paste_x, paste_y = x, y
-    elif anchor == "tr":
-        paste_x, paste_y = x - size, y
-    elif anchor == "bl":
-        paste_x, paste_y = x, y - size
-    elif anchor == "br":
-        paste_x, paste_y = x - size, y - size
-    elif anchor == "mt":
-        paste_x, paste_y = x - size // 2, y
-    elif anchor == "mb":
-        paste_x, paste_y = x - size // 2, y - size
-    elif anchor == "lm":
-        paste_x, paste_y = x, y - size // 2
-    elif anchor == "rm":
-        paste_x, paste_y = x - size, y - size // 2
-    else:
-        _LOGGER.warning(f"Unknown anchor '{anchor}', using top-left")
-        paste_x, paste_y = x, y
-
-    # Paste icon
-    ctx.img.paste(icon_img, (paste_x, paste_y), icon_img)
-    ctx.pos_y = paste_y + size
+    bbox = draw.textbbox((x, y), char, font=font, anchor=anchor)
+    ctx.pos_y = int(bbox[3])
 
 
 @element_handler(ElementType.ICON_SEQUENCE, requires=["x", "y", "icons", "size"])
@@ -179,49 +134,56 @@ async def draw_icon_sequence(ctx: DrawingContext, element: dict[str, Any]) -> No
                 - spacing: Space between icons (default: size/4)
                 - direction: "right", "left", "up", or "down" (default: "right")
                 - color or fill: Icon color (default: black)
-                - anchor: Positioning anchor (default: "mm")
+                - anchor: Pillow text anchor (default: "la")
+                - stroke_width: Stroke width in pixels (default: 0)
+                - stroke_fill: Stroke color (default: "white")
 
     Example:
         {"type": "icon_sequence", "icons": ["home", "cog"], "x": 10, "y": 10, "size": 32}
     """
-    # Parse start position
     x_start = ctx.coords.parse_x(element["x"])
     y_start = ctx.coords.parse_y(element["y"])
 
-    # Get properties
     size = element["size"]
     spacing = element.get("spacing", size // 4)
     color = ctx.colors.resolve(element.get("color") or element.get("fill", "black")) or BLACK
-    anchor = element.get("anchor", "mm")
+    anchor = element.get("anchor", "la")
+    stroke_width = element.get("stroke_width", 0)
+    stroke_fill = ctx.colors.resolve(element.get("stroke_fill", "white"))
     direction = element.get("direction", "right")
+
+    font = _get_mdi_font(size)
+    draw = ImageDraw.Draw(ctx.img)
 
     current_x, current_y = x_start, y_start
     max_x, max_y = x_start, y_start
 
-    # Draw each icon
     for name in element["icons"]:
-        try:
-            icon_img = _render_mdi_icon(name, size, color)
-        except ValueError as err:
-            _LOGGER.warning(f"Skipping icon '{name}': {err}")
+        if name.startswith("mdi:"):
+            name = name[4:]
+
+        index = _get_mdi_index()
+        codepoint = index.get(name)
+        if not codepoint:
+            _LOGGER.warning("Skipping unknown icon '%s'", name)
             continue
+        char = chr(int(codepoint, 16))
 
-        # Calculate paste position
-        if anchor == "mm":
-            paste_x, paste_y = current_x - size // 2, current_y - size // 2
-        elif anchor == "tl":
-            paste_x, paste_y = current_x, current_y
-        else:
-            paste_x, paste_y = current_x, current_y
+        draw.text(
+            (current_x, current_y),
+            char,
+            font=font,
+            fill=color,
+            anchor=anchor,
+            fontmode="1",
+            stroke_width=stroke_width,
+            stroke_fill=stroke_fill,
+        )
 
-        # Paste icon
-        ctx.img.paste(icon_img, (paste_x, paste_y), icon_img)
+        bbox = draw.textbbox((current_x, current_y), char, font=font, anchor=anchor)
+        max_x = max(max_x, int(bbox[2]))
+        max_y = max(max_y, int(bbox[3]))
 
-        # Track bounds
-        max_x = max(max_x, paste_x + size)
-        max_y = max(max_y, paste_y + size)
-
-        # Move to next position
         if direction == "right":
             current_x += size + spacing
         elif direction == "left":
@@ -231,4 +193,4 @@ async def draw_icon_sequence(ctx: DrawingContext, element: dict[str, Any]) -> No
         elif direction == "up":
             current_y -= size + spacing
 
-    ctx.pos_y = max_y
+    ctx.pos_y = int(max_y)

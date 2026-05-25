@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.9](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.8...odl-renderer-v0.5.9) (2026-05-25)
+
+
+### Bug Fixes
+
+* draw icons directly onto canvas with Pillow native anchors ([10d6c59](https://github.com/OpenDisplay/odl-renderer/commit/10d6c5916c04f36dde2951350020c28d070e69f8))
+
+
+### Tests
+
+* update icon anchor tests to use Pillow native anchor names ([90757ac](https://github.com/OpenDisplay/odl-renderer/commit/90757ac763f74ce18d52e44e722d5602a3cc2413))
+
 ## [0.5.8](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.7...odl-renderer-v0.5.8) (2026-05-24)
 
 

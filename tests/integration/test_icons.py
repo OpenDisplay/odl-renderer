@@ -33,7 +33,7 @@ class TestIconElement:
         )
         assert image.size == (100, 100)
 
-    @pytest.mark.parametrize("anchor", ["mm", "tl", "tr", "bl", "br", "mt", "mb", "lm", "rm", "unknown"])
+    @pytest.mark.parametrize("anchor", ["la", "mm", "lt", "rt", "lb", "rb", "mt", "mb", "lm", "rm"])
     async def test_icon_anchors(self, anchor):
         image = await generate_image(
             width=100,
@@ -41,6 +41,15 @@ class TestIconElement:
             elements=[{"type": "icon", "value": MDI_ICON, "x": 50, "y": 50, "size": 24, "anchor": anchor}],
         )
         assert image.size == (100, 100)
+
+    async def test_icon_invalid_anchor_raises(self):
+        """Unknown anchor strings are rejected by Pillow."""
+        with pytest.raises(Exception):
+            await generate_image(
+                width=100,
+                height=100,
+                elements=[{"type": "icon", "value": MDI_ICON, "x": 50, "y": 50, "size": 24, "anchor": "unknown"}],
+            )
 
     async def test_icon_invalid_name_raises(self):
         with pytest.raises(ValueError):

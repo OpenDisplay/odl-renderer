@@ -35,19 +35,28 @@ class TestHasTransform:
 
 
 class TestAnchorPoint:
+    # Pillow text format: first char horizontal (l/m/r), second vertical (t/m/b).
     def test_center_default(self):
         assert _anchor_point("mm", (10, 20, 30, 40)) == (20.0, 30.0)
 
     def test_top_left(self):
-        assert _anchor_point("tl", (10, 20, 30, 40)) == (10.0, 20.0)
+        assert _anchor_point("lt", (10, 20, 30, 40)) == (10.0, 20.0)
 
     def test_bottom_right(self):
-        assert _anchor_point("br", (10, 20, 30, 40)) == (30.0, 40.0)
+        assert _anchor_point("rb", (10, 20, 30, 40)) == (30.0, 40.0)
 
-    def test_order_independent(self):
-        assert _anchor_point("lt", (10, 20, 30, 40)) == _anchor_point("tl", (10, 20, 30, 40))
+    def test_middle_top(self):
+        # Regression: the 'm' in "mt" must not collapse to center.
+        assert _anchor_point("mt", (10, 20, 30, 40)) == (20.0, 20.0)
 
-    def test_invalid_falls_back_to_center(self):
+    def test_middle_bottom(self):
+        assert _anchor_point("mb", (10, 20, 30, 40)) == (20.0, 40.0)
+
+    def test_left_middle(self):
+        assert _anchor_point("lm", (10, 20, 30, 40)) == (10.0, 30.0)
+
+    def test_empty_and_invalid_fall_back_to_center(self):
+        assert _anchor_point("", (10, 20, 30, 40)) == (20.0, 30.0)
         assert _anchor_point("??", (10, 20, 30, 40)) == (20.0, 30.0)
 
 
@@ -56,7 +65,7 @@ class TestResolvePivot:
         assert _resolve_pivot(None, (0, 0, 100, 50), None) == (50.0, 25.0)
 
     def test_anchor_keyword(self):
-        assert _resolve_pivot("tl", (0, 0, 100, 50), None) == (0.0, 0.0)
+        assert _resolve_pivot("lt", (0, 0, 100, 50), None) == (0.0, 0.0)
 
     def test_coord_pair_pixels(self):
         coords = CoordinateParser(200, 100)

@@ -31,7 +31,7 @@ class TestTransformVisualRegression:
         )
         assert _png_bytes(image) == snapshot_png
 
-    async def test_rotated_text_pivot_top_left(self, snapshot_png, ppb_font):
+    async def test_rotated_text_pivot_left_top(self, snapshot_png, ppb_font):
         image = await generate_image(
             width=120,
             height=120,
@@ -45,7 +45,7 @@ class TestTransformVisualRegression:
                     "font": ppb_font,
                     "size": 28,
                     "rotation": 45,
-                    "pivot": "tl",
+                    "pivot": "lt",
                 },
             ],
         )

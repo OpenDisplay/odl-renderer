@@ -130,9 +130,9 @@ When `y` is omitted, elements stack automatically: each element is placed below 
 
 ### Anchors
 
-Used by `text`, `icon`, and `icon_sequence` to set which point of the element aligns to the given `x`/`y` coordinates.
+Used by `text`, `icon`, and `icon_sequence` to set which point of the element aligns to the given `x`/`y` coordinates, and by `pivot` (see [rotation](#rotation)/[mirror](#mirror)) to set the transform origin.
 
-`text` uses PIL anchor format — horizontal axis first, then vertical:
+All of them use the PIL anchor format — horizontal axis first, then vertical:
 
 | Code | Meaning         |
 |------|-----------------|
@@ -146,19 +146,7 @@ Used by `text`, `icon`, and `icon_sequence` to set which point of the element al
 | `mb` | Middle-bottom   |
 | `rb` | Right-bottom    |
 
-`icon` and `icon_sequence` use a different format for corner anchors — vertical axis first:
-
-| Code | Meaning         |
-|------|-----------------|
-| `tl` | Top-left        |
-| `tr` | Top-right       |
-| `mt` | Middle-top      |
-| `lm` | Left-middle     |
-| `mm` | Middle (center) |
-| `rm` | Right-middle    |
-| `bl` | Bottom-left     |
-| `br` | Bottom-right    |
-| `mb` | Middle-bottom   |
+`icon` and `icon_sequence` default to `la` (left-ascender) rather than `lt`; otherwise the codes are identical.
 
 ### The `visible` field
 
@@ -183,19 +171,43 @@ Every element type accepts an optional `rotation` (degrees, **positive = clockwi
 | Field      | Required | Default          | Notes                                                                              |
 |------------|----------|------------------|------------------------------------------------------------------------------------|
 | `rotation` | no       | `0`              | Degrees, positive = clockwise                                                       |
-| `pivot`    | no       | `"mm"` (center)  | Anchor keyword (`tl`, `mm`, `br`, …) relative to the element, **or** `[x, y]` canvas coords (percentages allowed, e.g. `["50%", "50%"]`) |
+| `pivot`    | no       | `"mm"` (center)  | [Anchor](#anchors) keyword relative to the element (e.g. `lt`, `mm`, `rb`), **or** `[x, y]` canvas coords (percentages allowed, e.g. `["50%", "50%"]`) |
 
 > Not to be confused with the `image`/`dlimg`-only `rotate` field, which rotates the *source image before fitting it to the box*. Use `rotation` to tilt any rendered element on the canvas.
 
 ```yaml
 [
-    {"type": "text", "value": "Rotated", "x": 148, "y": 64, "size": 30, "anchor": "mm", "rotation": 45},
-    {"type": "text", "value": "Rotated", "x": 148, "y": 64, "size": 30, "anchor": "mm", "color": "gray"},
-    {"type": "circle", "x": 148, "y": 64, "radius": 3, "fill": "red"}
+    {
+        "type": "text",
+        "value": "Rotated",
+        "x": 148,
+        "y": 64,
+        "size": 30,
+        "anchor": "mm",
+        "rotation": 45
+    },
+    # Illustration only — the gray "ghost" of the original orientation:
+    {
+        "type": "text",
+        "value": "Rotated",
+        "x": 148,
+        "y": 64,
+        "size": 30,
+        "anchor": "mm",
+        "color": "gray"
+    },
+    # Illustration only — a dot marking the pivot (the element's center):
+    {
+        "type": "circle",
+        "x": 148,
+        "y": 64,
+        "radius": 3,
+        "fill": "red"
+    }
 ]
 ```
 
-Only the first element matters for usage — the gray "ghost" shows the un-rotated original and the red dot marks the pivot (`pivot` defaults to the element's center; set e.g. `"pivot": "tl"` or `"pivot": [148, 64]` to move it).
+Only the first element matters for usage — the gray "ghost" shows the un-rotated original and the red dot marks the pivot (`pivot` defaults to the element's center; set e.g. `"pivot": "lt"` or `"pivot": [148, 64]` to move it).
 
 ![rotation example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/rotation.png)
 
@@ -210,9 +222,28 @@ Every element type accepts an optional `mirror` to flip it about its `pivot`: `"
 
 ```yaml
 [
-    {"type": "polygon", "points": [[60, 30], [110, 30], [110, 45], [80, 45], [80, 98], [60, 98]], "fill": "red", "mirror": "h"},
-    {"type": "polygon", "points": [[60, 30], [110, 30], [110, 45], [80, 45], [80, 98], [60, 98]], "outline": "gray", "width": 1},
-    {"type": "line", "x_start": 85, "y_start": 20, "x_end": 85, "y_end": 108, "fill": "red", "width": 1}
+    {
+        "type": "polygon",
+        "points": [[60, 30], [110, 30], [110, 45], [80, 45], [80, 98], [60, 98]],
+        "fill": "red",
+        "mirror": "h"
+    },
+    # Illustration only — the original outline and the flip axis:
+    {
+        "type": "polygon",
+        "points": [[60, 30], [110, 30], [110, 45], [80, 45], [80, 98], [60, 98]],
+        "outline": "gray",
+        "width": 1
+    },
+    {
+        "type": "line",
+        "x_start": 85,
+        "y_start": 20,
+        "x_end": 85,
+        "y_end": 108,
+        "fill": "red",
+        "width": 1
+    }
 ]
 ```
 

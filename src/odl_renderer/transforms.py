@@ -19,10 +19,6 @@ from PIL import Image
 if TYPE_CHECKING:
     from .coordinates import CoordinateParser
 
-# Horizontal/vertical pivot components resolved against a bbox (left, top, right, bottom).
-_H_COMPONENTS = frozenset("lmr")
-_V_COMPONENTS = frozenset("tmb")
-
 
 def has_transform(element: dict[str, Any]) -> bool:
     """Return True if an element requests a rotation or mirror transform."""
@@ -121,17 +117,18 @@ def _resolve_pivot(
 
 
 def _anchor_point(key: str, bbox: tuple[int, int, int, int]) -> tuple[float, float]:
-    """Resolve an anchor keyword (e.g. "tl", "mm", "br") to a bbox point.
+    """Resolve a two-letter anchor keyword to a bbox point.
 
-    Order-independent and lenient: the first horizontal char in {l, m, r} and
-    the first vertical char in {t, m, b} are used; missing components default to
-    the middle (center).
+    Uses the same Pillow anchor format as text: the first character selects the
+    horizontal edge (``l``/``m``/``r``) and the second the vertical edge
+    (``t``/``m``/``b``). Missing or unrecognized characters default to the
+    middle, so ``"mm"`` (or ``""``) is the center.
     """
     left, top, right, bottom = bbox
     x_by = {"l": left, "m": (left + right) / 2, "r": right}
     y_by = {"t": top, "m": (top + bottom) / 2, "b": bottom}
 
     lowered = key.strip().lower()
-    h = next((ch for ch in lowered if ch in _H_COMPONENTS), "m")
-    v = next((ch for ch in lowered if ch in _V_COMPONENTS), "m")
-    return float(x_by[h]), float(y_by[v])
+    h = lowered[0] if len(lowered) > 0 else "m"
+    v = lowered[1] if len(lowered) > 1 else "m"
+    return float(x_by.get(h, (left + right) / 2)), float(y_by.get(v, (top + bottom) / 2))

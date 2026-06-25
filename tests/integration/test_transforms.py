@@ -48,7 +48,7 @@ class TestRotation:
     async def test_pivot_changes_result(self):
         base = {"type": "text", "value": "Fg", "x": 40, "y": 45, "size": 40, "rotation": 90}
         center = await _render(base)
-        corner = await _render({**base, "pivot": "tl"})
+        corner = await _render({**base, "pivot": "lt"})
         assert ImageChops.difference(center.convert("RGB"), corner.convert("RGB")).getbbox() is not None
 
     async def test_coordinate_pivot_renders(self):

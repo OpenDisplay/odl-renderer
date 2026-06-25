@@ -13,6 +13,7 @@ from .coordinates import CoordinateParser
 from .elements import debug, icons, media, shapes, text, visualizations  # noqa: F401
 from .fonts import FontManager
 from .registry import get_all_handlers
+from .transforms import apply_transform, has_transform
 from .types import DataProvider, DrawingContext, ElementType
 
 _LOGGER = logging.getLogger(__name__)
@@ -84,7 +85,7 @@ async def generate_image(
     # Process each element
     for i, element in enumerate(elements):
         # Skip hidden elements
-        if not element.get("visible", True):
+        if not _coerce_visible(element.get("visible", True)):
             continue
 
         try:
@@ -96,7 +97,10 @@ async def generate_image(
             # Get the appropriate handler and call it
             handler = draw_handlers.get(element_type)
             if handler:
-                await handler(ctx, element)
+                if has_transform(element):
+                    await _render_transformed(ctx, handler, element)
+                else:
+                    await handler(ctx, element)
             else:
                 error_msg = f"No handler found for element type: {element_type}"
                 _LOGGER.warning(error_msg)
@@ -115,6 +119,59 @@ async def generate_image(
     return img
 
 
+async def _render_transformed(ctx: DrawingContext, handler: Any, element: dict[str, Any]) -> None:
+    """Render an element onto its own layer, transform it, then composite back.
+
+    The element is drawn onto a transparent full-canvas layer by temporarily
+    pointing the context at it, so the handler is used unchanged. The layer is
+    then rotated/mirrored and alpha-composited onto the base image. Mutating
+    ``ctx.img`` in place preserves any ``ctx.pos_y`` flow updates the handler
+    makes (e.g. text auto-flow).
+    """
+    base = ctx.img
+    layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    ctx.img = layer
+    try:
+        await handler(ctx, element)
+    finally:
+        ctx.img = base
+
+    layer = apply_transform(
+        layer,
+        rotation=element.get("rotation"),
+        mirror=element.get("mirror"),
+        pivot=element.get("pivot"),
+        coords=ctx.coords,
+    )
+    base.alpha_composite(layer)
+
+
+_FALSY_VISIBLE_STRINGS = frozenset({"false", ""})
+
+
+def _coerce_visible(value: Any) -> bool:
+    """Coerce a `visible` field value to a boolean.
+
+    Lenient by design: Home Assistant templates render to strings, so values
+    like "false"/"False" must read as hidden even though any non-empty string
+    is normally truthy. Whitespace-only strings fold to False, preserving the
+    "render an empty string to hide" workaround.
+
+    Args:
+        value: Raw `visible` value (bool, str, number, or other).
+
+    Returns:
+        bool: True if the element should be shown, False if hidden.
+    """
+    if isinstance(value, str):
+        return value.strip().lower() not in _FALSY_VISIBLE_STRINGS
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    return bool(value)
+
+
 def should_show_element(element: dict[str, Any]) -> bool:
     """Check if an element should be displayed.
 
@@ -127,4 +184,4 @@ def should_show_element(element: dict[str, Any]) -> bool:
     Returns:
         bool: True if the element should be displayed, False otherwise
     """
-    return bool(element.get("visible", True))
+    return _coerce_visible(element.get("visible", True))

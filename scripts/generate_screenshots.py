@@ -83,10 +83,13 @@ def parse_element_examples(readme: str) -> dict[str, dict]:
 async def render_element(name: str, config: dict, session: aiohttp.ClientSession) -> None:
     """Render a single element config to a PNG file."""
 
+    # An example may be a single element dict or a list of elements (used by the
+    # annotated rotation/mirror demos, where helper elements illustrate the pivot).
+    elements = config if isinstance(config, list) else [config]
     image = await generate_image(
         width=CANVAS_WIDTH,
         height=CANVAS_HEIGHT,
-        elements=[config],
+        elements=elements,
         background="white",
         session=session,
         data_provider=MockDataProvider(),

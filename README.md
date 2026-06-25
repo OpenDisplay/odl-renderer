@@ -162,7 +162,7 @@ Used by `text`, `icon`, and `icon_sequence` to set which point of the element al
 
 ### The `visible` field
 
-Every element type accepts an optional `visible` field. When `false`, the element is skipped entirely (no rendering, no position update). Defaults to `true`.
+Every element type accepts an optional `visible` field. When falsy, the element is skipped entirely (no rendering, no position update). Defaults to `true`.
 
 ```yaml
 {
@@ -173,6 +173,52 @@ Every element type accepts an optional `visible` field. When `false`, the elemen
     "visible": False
 }
 ```
+
+String values are coerced, which matters when `visible` is produced by a Home Assistant template (templates render to strings). The string `"false"` (case-insensitive) and empty/whitespace-only strings hide the element; any other non-empty string shows it. So a template that renders `"false"` hides the element as expected — rendering down to an empty string is no longer required.
+
+### `rotation`
+
+Every element type accepts an optional `rotation` (degrees, **positive = clockwise**, arbitrary values allowed) and an optional `pivot` controlling the point it rotates about. The element is rendered, then rotated in place and composited back, so any element type works.
+
+| Field      | Required | Default          | Notes                                                                              |
+|------------|----------|------------------|------------------------------------------------------------------------------------|
+| `rotation` | no       | `0`              | Degrees, positive = clockwise                                                       |
+| `pivot`    | no       | `"mm"` (center)  | Anchor keyword (`tl`, `mm`, `br`, …) relative to the element, **or** `[x, y]` canvas coords (percentages allowed, e.g. `["50%", "50%"]`) |
+
+> Not to be confused with the `image`/`dlimg`-only `rotate` field, which rotates the *source image before fitting it to the box*. Use `rotation` to tilt any rendered element on the canvas.
+
+```yaml
+[
+    {"type": "text", "value": "Rotated", "x": 148, "y": 64, "size": 30, "anchor": "mm", "rotation": 45},
+    {"type": "text", "value": "Rotated", "x": 148, "y": 64, "size": 30, "anchor": "mm", "color": "gray"},
+    {"type": "circle", "x": 148, "y": 64, "radius": 3, "fill": "red"}
+]
+```
+
+Only the first element matters for usage — the gray "ghost" shows the un-rotated original and the red dot marks the pivot (`pivot` defaults to the element's center; set e.g. `"pivot": "tl"` or `"pivot": [148, 64]` to move it).
+
+![rotation example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/rotation.png)
+
+### `mirror`
+
+Every element type accepts an optional `mirror` to flip it about its `pivot`: `"h"` (horizontal), `"v"` (vertical), or `"hv"` (both). Unknown values are ignored.
+
+| Field    | Required | Default         | Notes                                          |
+|----------|----------|-----------------|------------------------------------------------|
+| `mirror` | no       | —               | `"h"`, `"v"`, or `"hv"` (case-insensitive)     |
+| `pivot`  | no       | `"mm"` (center) | Same as `rotation`: anchor keyword or `[x, y]` |
+
+```yaml
+[
+    {"type": "polygon", "points": [[60, 30], [110, 30], [110, 45], [80, 45], [80, 98], [60, 98]], "fill": "red", "mirror": "h"},
+    {"type": "polygon", "points": [[60, 30], [110, 30], [110, 45], [80, 45], [80, 98], [60, 98]], "outline": "gray", "width": 1},
+    {"type": "line", "x_start": 85, "y_start": 20, "x_end": 85, "y_end": 108, "fill": "red", "width": 1}
+]
+```
+
+The filled red shape is mirrored; the gray outline shows the original and the vertical red line marks the flip axis (the element's center by default).
+
+![mirror example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/mirror.png)
 
 ---
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.10](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.9...odl-renderer-v0.5.10) (2026-06-25)
+
+
+### Features
+
+* add element rotation/mirror transforms and coerce string visible values ([92b16fd](https://github.com/OpenDisplay/odl-renderer/commit/92b16fd4d00f07e21dfedc28ef6ca60fd37a9cce))
+
+
+### Bug Fixes
+
+* align pivot anchors with the text/PIL convention ([723319a](https://github.com/OpenDisplay/odl-renderer/commit/723319a426a268a6ce0638b50c882532afed6b43))
+
 ## [0.5.9](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.8...odl-renderer-v0.5.9) (2026-05-25)
 
 

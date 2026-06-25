@@ -20,3 +20,17 @@ def test_parse_colored_text_supports_hex_tags():
 
     assert [segment.text for segment in segments] == ["G", "H"]
     assert [segment.color for segment in segments] == ["#0f0", "#00FFAA"]
+
+
+def test_parse_colored_text_supports_gray_names():
+    segments = parse_colored_text("[ltgray]L[/ltgray][dkgray]D[/dkgray]")
+
+    assert [segment.text for segment in segments] == ["L", "D"]
+    assert [segment.color for segment in segments] == ["ltgray", "dkgray"]
+
+
+def test_parse_colored_text_supports_8_digit_hex_tags():
+    segments = parse_colored_text("[#FF000080]A[/#FF000080]")
+
+    assert [segment.text for segment in segments] == ["A"]
+    assert [segment.color for segment in segments] == ["#FF000080"]

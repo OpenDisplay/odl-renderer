@@ -6,6 +6,7 @@ from typing import Any, List, Tuple
 
 from PIL import ImageDraw, ImageFont
 
+from odl_renderer.colors import COLOR_TOKEN_PATTERN
 from odl_renderer.registry import element_handler
 from odl_renderer.types import DrawingContext, ElementType, TextSegment
 
@@ -275,11 +276,9 @@ def parse_colored_text(text: str) -> List[TextSegment]:
 
     segments = []
     current_pos = 0
-    pattern = (
-        r"\[(black|b|white|w|red|r|yellow|y|blue|bl|green|gr|g|accent|a|"
-        r"half_black|half_white|half_red|half_yellow|half_accent|gray|grey|"
-        r"hb|hw|hr|hy|ha|#[0-9A-Fa-f]{3}|#[0-9A-Fa-f]{6})\](.*?)\[/\1\]"
-    )
+    # Valid color tokens (names + hex) are derived centrally in colors.py,
+    # so new named colors need no change here.
+    pattern = r"\[(" + COLOR_TOKEN_PATTERN + r")\](.*?)\[/\1\]"
 
     for match in re.finditer(pattern, text, re.DOTALL):
         # Add any text before the match with default color

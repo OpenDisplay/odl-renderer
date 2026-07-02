@@ -20,7 +20,7 @@ from .fonts import FontManager
 from .types import DrawingContext, ElementType, TextSegment
 from .warmup import warmup
 
-__version__ = "0.5.10"
+__version__ = "0.5.11"
 
 __all__ = [
     "warmup",

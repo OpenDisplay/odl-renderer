@@ -1,6 +1,19 @@
 import pytest
 
-from odl_renderer.colors import BLACK, BLUE, GREEN, HALF_BLACK, HALF_RED, HALF_YELLOW, RED, WHITE, YELLOW, ColorResolver
+from odl_renderer.colors import (
+    BLACK,
+    BLUE,
+    DARK_GRAY,
+    GREEN,
+    HALF_BLACK,
+    HALF_RED,
+    HALF_YELLOW,
+    LIGHT_GRAY,
+    RED,
+    WHITE,
+    YELLOW,
+    ColorResolver,
+)
 
 
 class TestColorResolver:
@@ -31,10 +44,19 @@ class TestColorResolver:
             ("#ff0000", (255, 0, 0, 255)),
             ("#FF0000", (255, 0, 0, 255)),
             ("#Ff0000", (255, 0, 0, 255)),
+            # 8-digit hex with alpha
+            ("#FF000080", (255, 0, 0, 128)),
+            ("#FFFFFFFF", (255, 255, 255, 255)),
+            ("#00000000", (0, 0, 0, 0)),
+            # 4-digit hex shorthand with alpha
+            ("#F008", (255, 0, 0, 136)),
+            ("#FFFF", (255, 255, 255, 255)),
+            # Surrounding whitespace is stripped
+            ("  #FF0000  ", (255, 0, 0, 255)),
         ],
     )
     def test_hex_colors(self, hex_color, expected):
-        """Test hex color parsing (6-digit, 3-digit, case variations)."""
+        """Test hex color parsing (3/4/6/8-digit, alpha, case, whitespace)."""
         resolver = ColorResolver()
         assert resolver.resolve(hex_color) == expected
 
@@ -53,13 +75,21 @@ class TestColorResolver:
             # White
             ("white", WHITE),
             ("w", WHITE),
-            # Half black / gray
+            # Half black / mid gray
             ("half_black", HALF_BLACK),
             ("hb", HALF_BLACK),
             ("gray", HALF_BLACK),
             ("grey", HALF_BLACK),
-            ("half_white", HALF_BLACK),
-            ("hw", HALF_BLACK),
+            # Dark gray
+            ("dark_gray", DARK_GRAY),
+            ("darkgray", DARK_GRAY),
+            ("dkgray", DARK_GRAY),
+            # Light gray (half_white fixed: was wrongly mid gray)
+            ("light_gray", LIGHT_GRAY),
+            ("lightgray", LIGHT_GRAY),
+            ("ltgray", LIGHT_GRAY),
+            ("half_white", LIGHT_GRAY),
+            ("hw", LIGHT_GRAY),
             # Red
             ("red", RED),
             ("r", RED),

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.11](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.10...odl-renderer-v0.5.11) (2026-07-02)
+
+
+### Bug Fixes
+
+* add gray levels, fix half_white, harden hex, centralize named colors ([317d6bc](https://github.com/OpenDisplay/odl-renderer/commit/317d6bc63d61b4b402e71e6382c41134128aa63f))
+
+
+### Tests
+
+* add visual regression tests for grayscale ramp and gray text ([c31aaa3](https://github.com/OpenDisplay/odl-renderer/commit/c31aaa3f7caf164bbbfd78d08572fa0fb7ac330a))
+
 ## [0.5.10](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.9...odl-renderer-v0.5.10) (2026-06-25)
 
 

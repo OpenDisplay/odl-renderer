@@ -13,7 +13,7 @@ from .coordinates import CoordinateParser
 from .elements import debug, icons, media, shapes, text, visualizations  # noqa: F401
 from .fonts import FontManager
 from .registry import get_all_handlers
-from .transforms import apply_transform, has_transform
+from .transforms import apply_transform_region, has_transform
 from .types import DataProvider, DrawingContext, ElementType
 
 _LOGGER = logging.getLogger(__name__)
@@ -123,8 +123,9 @@ async def _render_transformed(ctx: DrawingContext, handler: Any, element: dict[s
     """Render an element onto its own layer, transform it, then composite back.
 
     The element is drawn onto a transparent full-canvas layer by temporarily
-    pointing the context at it, so the handler is used unchanged. The layer is
-    then rotated/mirrored and alpha-composited onto the base image. Mutating
+    pointing the context at it, so the handler is used unchanged. Only the region
+    the element occupies is then rotated/mirrored and alpha-composited onto the
+    base image (cost proportional to the element, not the whole canvas). Mutating
     ``ctx.img`` in place preserves any ``ctx.pos_y`` flow updates the handler
     makes (e.g. text auto-flow).
     """
@@ -136,14 +137,16 @@ async def _render_transformed(ctx: DrawingContext, handler: Any, element: dict[s
     finally:
         ctx.img = base
 
-    layer = apply_transform(
+    result = apply_transform_region(
         layer,
         rotation=element.get("rotation"),
         mirror=element.get("mirror"),
         pivot=element.get("pivot"),
         coords=ctx.coords,
     )
-    base.alpha_composite(layer)
+    if result is not None:
+        transformed, offset = result
+        base.alpha_composite(transformed, offset)
 
 
 _FALSY_VISIBLE_STRINGS = frozenset({"false", ""})

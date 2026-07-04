@@ -12,6 +12,7 @@ in place. The pivot can be overridden per element.
 
 from __future__ import annotations
 
+import math
 from typing import TYPE_CHECKING, Any
 
 from PIL import Image
@@ -19,10 +20,41 @@ from PIL import Image
 if TYPE_CHECKING:
     from .coordinates import CoordinateParser
 
+# Extra transparent margin (px) kept around the element when cropping before a
+# transform, so the BICUBIC rotation kernel (±2 px support) samples the same
+# neighborhood it would on the full canvas — keeping the output pixel-identical.
+_CROP_MARGIN = 2
+
 
 def has_transform(element: dict[str, Any]) -> bool:
     """Return True if an element requests a rotation or mirror transform."""
     return bool(element.get("rotation")) or bool(element.get("mirror"))
+
+
+def _transform_layer(
+    layer: Image.Image,
+    rotation: float | int | None,
+    mirror: str | None,
+    px: float,
+    py: float,
+) -> Image.Image:
+    """Apply mirror then rotation to *layer* about the pivot ``(px, py)``.
+
+    ``(px, py)`` are in *layer*-local coordinates. The output keeps the input size.
+    """
+    if mirror:
+        layer = _apply_mirror(layer, mirror, px, py)
+
+    if rotation:
+        # PIL rotates counter-clockwise; negate so positive = clockwise.
+        layer = layer.rotate(
+            -float(rotation),
+            resample=Image.Resampling.BICUBIC,
+            center=(px, py),
+            expand=False,
+        )
+
+    return layer
 
 
 def apply_transform(
@@ -54,20 +86,53 @@ def apply_transform(
         return layer
 
     px, py = _resolve_pivot(pivot, bbox, coords)
+    return _transform_layer(layer, rotation, mirror, px, py)
 
-    if mirror:
-        layer = _apply_mirror(layer, mirror, px, py)
 
-    if rotation:
-        # PIL rotates counter-clockwise; negate so positive = clockwise.
-        layer = layer.rotate(
-            -float(rotation),
-            resample=Image.Resampling.BICUBIC,
-            center=(px, py),
-            expand=False,
-        )
+def apply_transform_region(
+    layer: Image.Image,
+    *,
+    rotation: float | int | None = None,
+    mirror: str | None = None,
+    pivot: Any = None,
+    coords: CoordinateParser | None = None,
+) -> tuple[Image.Image, tuple[int, int]] | None:
+    """Transform only the region of *layer* the element occupies.
 
-    return layer
+    Same result as :func:`apply_transform` followed by an ``alpha_composite`` of the
+    full layer, but the mirror/rotate run on a crop around the element instead of the
+    whole canvas — so the cost is proportional to the element size, not the canvas.
+
+    Mirror and rotation are both isometries about the pivot, so every non-transparent
+    pixel stays within distance ``R`` (the farthest bbox corner from the pivot) of it.
+    A crop of that radius (plus a resampling margin), clipped to the canvas, therefore
+    contains all source *and* transformed content, and transforming it about the
+    translated pivot yields pixels identical to the full-canvas path.
+
+    Returns:
+        ``(transformed_crop, (offset_x, offset_y))`` to composite the crop at, or
+        ``None`` if the layer is empty or the element lies entirely off-canvas.
+    """
+    bbox = layer.getbbox()
+    if bbox is None:
+        return None
+
+    px, py = _resolve_pivot(pivot, bbox, coords)
+
+    left, top, right, bottom = bbox
+    radius = max(math.hypot(cx - px, cy - py) for cx in (left, right) for cy in (top, bottom))
+    reach = math.ceil(radius) + _CROP_MARGIN
+
+    ox = max(0, math.floor(px - reach))
+    oy = max(0, math.floor(py - reach))
+    ex = min(layer.width, math.ceil(px + reach))
+    ey = min(layer.height, math.ceil(py + reach))
+    if ex <= ox or ey <= oy:
+        return None
+
+    crop = layer.crop((ox, oy, ex, ey))
+    transformed = _transform_layer(crop, rotation, mirror, px - ox, py - oy)
+    return transformed, (ox, oy)
 
 
 def _apply_mirror(layer: Image.Image, mirror: str, px: float, py: float) -> Image.Image:

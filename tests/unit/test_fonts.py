@@ -115,3 +115,18 @@ class TestFontManagerFontDirs:
         manager = FontManager()
         font = manager.get_font("ppb", 16)
         assert isinstance(font, ImageFont.FreeTypeFont)
+
+
+def test_module_font_cache_shared_across_managers():
+    """The process-wide truetype cache is reused across FontManager instances (B4)."""
+    m1 = FontManager()
+    m2 = FontManager()
+    f1 = m1.get_font("ppb", 16)
+    f2 = m2.get_font("ppb", 16)
+    # A fresh FontManager per generate_image() must not re-read the font from disk.
+    assert f1 is f2
+
+
+def test_module_font_cache_keys_on_size():
+    m = FontManager()
+    assert m.get_font("ppb", 16) is not m.get_font("ppb", 24)

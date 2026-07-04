@@ -25,6 +25,15 @@ class TestLineElement:
         )
         assert image.size == (200, 100)
 
+    async def test_zero_length_dashed_line_does_not_crash(self):
+        """A dashed line with start == end must not divide by zero (finding A4)."""
+        image = await generate_image(
+            width=200,
+            height=100,
+            elements=[E.line(x_start=50, y_start=50, x_end=50, y_end=50, dashed=True)],
+        )
+        assert image.size == (200, 100)
+
     async def test_line_colors(self):
         for color in ["black", "red", "#FF0000"]:
             image = await generate_image(

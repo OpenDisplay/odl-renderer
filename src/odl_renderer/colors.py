@@ -1,3 +1,19 @@
+import logging
+
+_LOGGER = logging.getLogger(__name__)
+
+# Tokens we've already warned about, so an unknown color in a dashboard that
+# re-renders on every update logs once rather than on every frame.
+_warned_color_tokens: set[str] = set()
+
+
+def _warn_unresolved_color(token: str, reason: str) -> None:
+    """Log once that *token* could not be resolved and will render as white."""
+    if token not in _warned_color_tokens:
+        _warned_color_tokens.add(token)
+        _LOGGER.warning("Color %r %s; rendering as white", token, reason)
+
+
 # Color constants with alpha channel
 WHITE = (255, 255, 255, 255)
 BLACK = (0, 0, 0, 255)
@@ -115,8 +131,10 @@ class ColorResolver:
                 b = int(hex_val[4:6], 16)
                 a = int(hex_val[6:8], 16)
             else:
+                _warn_unresolved_color(f"#{hex_val}", "is not a valid hex color (expected 3, 4, 6, or 8 digits)")
                 return WHITE
         except ValueError:
+            _warn_unresolved_color(f"#{hex_val}", "contains non-hex characters")
             return WHITE
         return r, g, b, a
 
@@ -131,4 +149,8 @@ class ColorResolver:
             return YELLOW if self.accent_color == "yellow" else RED
         if color_str in ("half_accent", "ha"):
             return HALF_YELLOW if self.accent_color == "yellow" else HALF_RED
-        return NAMED_COLORS.get(color_str, WHITE)
+        resolved = NAMED_COLORS.get(color_str)
+        if resolved is None:
+            _warn_unresolved_color(color_str, "is not a known color name")
+            return WHITE
+        return resolved

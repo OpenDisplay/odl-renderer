@@ -13,6 +13,31 @@ from odl_renderer.types import DrawingContext, ElementType
 
 _LOGGER = logging.getLogger(__name__)
 
+# Upper bound on the number of y-axis ticks / grid lines. The tick, grid and legend
+# loops step ``curr`` from ``min_v`` to ``max_v`` by ``tick_every``; without a bound a
+# single bogus sensor reading (e.g. a counter glitching to 2**32) makes the spread
+# millions wide and each loop issues millions of draw calls, freezing the event loop.
+_MAX_Y_TICKS = 100
+
+
+def _clamp_tick_every(tick_every: float, spread: float) -> float:
+    """Raise *tick_every* if needed so at most ``_MAX_Y_TICKS`` ticks are drawn.
+
+    Reasonable configurations (where ``spread / tick_every`` is already small) are
+    left untouched; only pathological spreads are clamped.
+
+    Args:
+        tick_every: Configured or default tick spacing (always > 0).
+        spread: The value range being plotted (``max_v - min_v``).
+
+    Returns:
+        A tick spacing that yields no more than ``_MAX_Y_TICKS`` ticks.
+    """
+    if spread <= 0:
+        return tick_every
+    min_tick = spread / _MAX_Y_TICKS
+    return max(tick_every, min_tick)
+
 
 def _fmt_value(v: int | float) -> str:
     """Format a numeric axis label, stripping unnecessary decimal places.
@@ -69,12 +94,42 @@ def _draw_grid_line(
                 draw.line([(x1, pos), (x1, min(pos + dash_length, y2))], fill=color, width=1)
                 pos += dash_length + gap_length
     elif style == "dotted":
+        # Build the full coordinate list and issue a single point() call per line;
+        # draw.point() accepts a sequence, so this avoids one call per pixel.
         if y1 == y2:  # horizontal
-            for x in range(int(x1), int(x2), 5):
-                draw.point((x, y1), fill=color)
+            draw.point([(x, y1) for x in range(int(x1), int(x2), 5)], fill=color)
         else:  # vertical
-            for y in range(int(y1), int(y2), 5):
-                draw.point((x1, y), fill=color)
+            draw.point([(x1, y) for y in range(int(y1), int(y2), 5)], fill=color)
+
+
+def _catmull_basis(steps: int) -> list[tuple[float, float, float, float]]:
+    """Precompute the four Catmull-Rom basis weights for each interpolation step.
+
+    The weights depend only on ``t = j / steps`` and are therefore constant across
+    every segment of a polyline, so computing them once and reusing them removes the
+    bulk of the per-point arithmetic.
+
+    Args:
+        steps: Number of interpolation steps per control-point pair.
+
+    Returns:
+        ``steps`` tuples of ``(w0, w1, w2, w3)`` weights, one per ``j`` in
+        ``range(steps)``.
+    """
+    basis: list[tuple[float, float, float, float]] = []
+    for j in range(steps):
+        t = j / steps
+        t2 = t * t
+        t3 = t2 * t
+        basis.append(
+            (
+                0.5 * (-t3 + 2 * t2 - t),
+                0.5 * (3 * t3 - 5 * t2 + 2),
+                0.5 * (-3 * t3 + 4 * t2 + t),
+                0.5 * (t3 - t2),
+            )
+        )
+    return basis
 
 
 def _catmull_rom_point(
@@ -82,41 +137,24 @@ def _catmull_rom_point(
     p1: tuple[int, int],
     p2: tuple[int, int],
     p3: tuple[int, int],
-    t: float,
+    weights: tuple[float, float, float, float],
 ) -> tuple[int, int]:
-    """Evaluate a Catmull-Rom spline at parameter *t*.
+    """Evaluate a Catmull-Rom spline using precomputed basis *weights*.
 
     Args:
         p0: Control point before the segment start.
         p1: Segment start point.
         p2: Segment end point.
         p3: Control point after the segment end.
-        t: Interpolation parameter in ``[0, 1]``.
+        weights: Basis weights ``(w0, w1, w2, w3)`` from :func:`_catmull_basis`.
 
     Returns:
         Interpolated ``(x, y)`` pixel coordinate.
     """
-    t2 = t * t
-    t3 = t2 * t
+    w0, w1, w2, w3 = weights
     return (
-        int(
-            0.5
-            * (
-                (-t3 + 2 * t2 - t) * p0[0]
-                + (3 * t3 - 5 * t2 + 2) * p1[0]
-                + (-3 * t3 + 4 * t2 + t) * p2[0]
-                + (t3 - t2) * p3[0]
-            )
-        ),
-        int(
-            0.5
-            * (
-                (-t3 + 2 * t2 - t) * p0[1]
-                + (3 * t3 - 5 * t2 + 2) * p1[1]
-                + (-3 * t3 + 4 * t2 + t) * p2[1]
-                + (t3 - t2) * p3[1]
-            )
-        ),
+        int(w0 * p0[0] + w1 * p1[0] + w2 * p2[0] + w3 * p3[0]),
+        int(w0 * p0[1] + w1 * p1[1] + w2 * p2[1] + w3 * p3[1]),
     )
 
 
@@ -134,23 +172,24 @@ def _smooth_segment(
         Densified coordinate list suitable for passing directly to
         ``ImageDraw.line()``.
     """
+    basis = _catmull_basis(steps)
     smooth_coords: list[tuple[int, int]] = [points[0]]
 
-    if len(points) > 3:
+    # Boundary extension for the first segment. Enabled at >= 3 points so that a
+    # 3-point series still curves through its middle point instead of collapsing
+    # to a straight first-to-last line.
+    if len(points) >= 3:
         for i in range(1, steps):
-            t = i / steps
-            smooth_coords.append(_catmull_rom_point(points[0], points[0], points[1], points[2], t))
+            smooth_coords.append(_catmull_rom_point(points[0], points[0], points[1], points[2], basis[i]))
 
     for i in range(len(points) - 3):
         p0, p1, p2, p3 = points[i], points[i + 1], points[i + 2], points[i + 3]
         for j in range(steps):
-            t = j / steps
-            smooth_coords.append(_catmull_rom_point(p0, p1, p2, p3, t))
+            smooth_coords.append(_catmull_rom_point(p0, p1, p2, p3, basis[j]))
 
-    if len(points) > 3:
+    if len(points) >= 3:
         for i in range(1, steps):
-            t = i / steps
-            smooth_coords.append(_catmull_rom_point(points[-3], points[-2], points[-1], points[-1], t))
+            smooth_coords.append(_catmull_rom_point(points[-3], points[-2], points[-1], points[-1], basis[i]))
 
     smooth_coords.append(points[-1])
     return smooth_coords
@@ -498,15 +537,14 @@ def _render_x_labels(
 def _render_series(
     draw: ImageDraw.ImageDraw,
     ctx: DrawingContext,
-    raw_data: list[Any],
-    plot_configs: list[dict[str, Any]],
+    raw_data: list[tuple[list[list[tuple[datetime, float]]], dict[str, Any]]],
     start: datetime,
     duration: timedelta,
     diag: SimpleNamespace,
     min_v: float,
     spread: float,
 ) -> None:
-    for plot_segments, plot_config in zip(raw_data, plot_configs):
+    for plot_segments, plot_config in raw_data:
         line_color = ctx.colors.resolve(plot_config.get("color", "black"))
         line_width = plot_config.get("width", 1)
         smooth = plot_config.get("smooth", False)
@@ -552,6 +590,10 @@ async def draw_plot(ctx: DrawingContext, element: dict[str, Any]) -> None:
     Requires a DataProvider in ctx.data_provider that supplies historical state
     records for each entity referenced in element["data"].
 
+    The optional ``low``/``high`` keys seed the y-axis range but do not pin it: if
+    the data exceeds them the axis auto-expands to fit every point (they act as a
+    minimum span, not a clamp).
+
     Args:
         ctx: Drawing context — must have data_provider set.
         element: Element dictionary with plot properties.
@@ -579,13 +621,16 @@ async def draw_plot(ctx: DrawingContext, element: dict[str, Any]) -> None:
     min_v, max_v = element.get("low"), element.get("high")
     entity_ids = [p["entity"] for p in element["data"]]
     all_states = await ctx.data_provider.get_history(entity_ids, start, end)
-    raw_data = []
+    # Keep each entity's segments paired with its own config. Skipping entities with
+    # no valid data while zipping against the full config list would otherwise shift
+    # the mapping and render a series with another entity's color/width/smooth.
+    raw_data: list[tuple[list[list[tuple[datetime, float]]], dict[str, Any]]] = []
     for plot in element["data"]:
         if plot["entity"] not in all_states:
             raise ValueError(f"no data returned for entity: {plot['entity']}")
         segments, min_v, max_v = _process_entity_segments(plot, all_states[plot["entity"]], min_v, max_v)
         if segments:
-            raw_data.append(segments)
+            raw_data.append((segments, plot))
     if not raw_data:
         raise ValueError("plot has no valid data points")
     assert min_v is not None and max_v is not None  # guaranteed by non-empty raw_data
@@ -598,6 +643,8 @@ async def draw_plot(ctx: DrawingContext, element: dict[str, Any]) -> None:
     # Parse axis/legend config and compute layout
     ylc = _parse_y_legend(element, ctx, font_name, min_v, max_v)
     yac = _parse_y_axis(element, ctx)
+    if yac.enabled:
+        yac.tick_every = _clamp_tick_every(yac.tick_every, spread)
     xlc = _parse_x_legend(element, ctx, font_name, duration)
     xac = _parse_x_axis(element, ctx)
     label_h = _x_label_height(xlc, xac)
@@ -640,7 +687,7 @@ async def draw_plot(ctx: DrawingContext, element: dict[str, Any]) -> None:
         _render_x_labels(draw, xlc, xac, diag, start, duration, curr_time, end_time, y_start)
 
     # Data series
-    _render_series(draw, ctx, raw_data, element["data"], start, duration, diag, min_v, spread)
+    _render_series(draw, ctx, raw_data, start, duration, diag, min_v, spread)
 
     ctx.pos_y = y_end
 
@@ -782,7 +829,10 @@ async def draw_diagram(ctx: DrawingContext, element: dict[str, Any]) -> None:
                 continue
 
         if max_val == 0:
+            # All bars are zero: nothing to scale. Advance past the diagram and stop
+            # before the division below (which would raise ZeroDivisionError).
             ctx.pos_y = ctx.pos_y + height
+            return
 
         height_factor = (height - offset_lines) / max_val
 

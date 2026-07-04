@@ -1,10 +1,16 @@
 import pytest
+from PIL import Image, ImageChops
 
 from odl_renderer import generate_image
 
 
 def text(**kwargs):
     return {"type": "text", "x": 10, "y": 10, "value": "Hello", "font": "ppb", "size": 16, **kwargs}
+
+
+def content_bbox(image: Image.Image) -> tuple[int, int, int, int] | None:
+    """Bounding box of the non-white (drawn) pixels of a white-background image."""
+    return ImageChops.invert(image.convert("L")).getbbox()
 
 
 def multiline(**kwargs):
@@ -131,6 +137,35 @@ class TestColoredText:
             elements=[text(value="[red]Middle[/red]", parse_colors=True, anchor="mm", x=100, y=50)],
         )
         assert image.size == (200, 100)
+
+    async def test_parse_colors_uses_element_color(self):
+        """Unmarked text on the parse_colors path uses the element color, not black (A6)."""
+        image = await generate_image(
+            width=200,
+            height=100,
+            elements=[text(value="plain text", parse_colors=True, color="red")],
+        )
+        colors = {c for _, c in image.convert("RGB").getcolors(maxcolors=100000)}
+        assert (255, 0, 0) in colors, "element color 'red' was ignored on the parse_colors path"
+
+    async def test_parse_colors_honors_vertical_anchor(self):
+        """A 'mm' anchor must position single-line parse_colors text like the plain path (A7)."""
+        with_parse = await generate_image(
+            width=200,
+            height=100,
+            elements=[text(value="Middle", parse_colors=True, anchor="mm", x=100, y=50, color="black")],
+        )
+        plain = await generate_image(
+            width=200,
+            height=100,
+            elements=[text(value="Middle", anchor="mm", x=100, y=50, color="black")],
+        )
+        parse_box = content_bbox(with_parse)
+        plain_box = content_bbox(plain)
+        assert parse_box is not None and plain_box is not None
+        # Vertical top should match within a couple of pixels, not be shifted down by
+        # half the text height as it was when the anchor was dropped.
+        assert abs(parse_box[1] - plain_box[1]) <= 2
 
     async def test_parse_colors_anchor_bottom(self):
         image = await generate_image(

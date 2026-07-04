@@ -58,28 +58,9 @@ async def draw_text(ctx: DrawingContext, element: dict[str, Any]) -> None:
     final_text = text
     if max_width is not None:
         if element.get("truncate", False):
-            if draw.textlength(text, font=font) > max_width:
-                ellipsis = "..."
-                truncated = text
-                while truncated and draw.textlength(truncated + ellipsis, font=font) > max_width:
-                    truncated = truncated[:-1]
-                final_text = truncated + ellipsis
+            final_text = _truncate_to_width(text, font, max_width)
         else:
-            words = text.split()
-            lines: list[str] = []
-            current_line: list[str] = []
-
-            for word in words:
-                test_line = " ".join(current_line + [word])
-                if not current_line or draw.textlength(test_line, font=font) <= max_width:
-                    current_line.append(word)
-                else:
-                    lines.append(" ".join(current_line))
-                    current_line = [word]
-
-            if current_line:
-                lines.append(" ".join(current_line))
-            final_text = "\n".join(lines)
+            final_text = _wrap_to_width(text, font, max_width)
 
     # Set appropriate anchor based on line count
     if not anchor:
@@ -87,7 +68,7 @@ async def draw_text(ctx: DrawingContext, element: dict[str, Any]) -> None:
 
     # Draw the text
     if element.get("parse_colors", False):
-        segments = parse_colored_text(final_text)
+        segments = parse_colored_text(final_text, element.get("color", "black"))
 
         # Check if text contains newlines
         has_newlines = "\n" in final_text
@@ -103,7 +84,6 @@ async def draw_text(ctx: DrawingContext, element: dict[str, Any]) -> None:
             adjusted_y = calculate_anchor_offset_y(y, total_height, anchor)
 
             # Draw each line
-            max_y = adjusted_y
             for line_segments, line_y_offset in zip(seg_lines, line_y_positions):
                 # Calculate horizontal positions for this line
                 line_segments, line_width = calculate_segment_positions(line_segments, font, x, align, anchor)
@@ -114,7 +94,6 @@ async def draw_text(ctx: DrawingContext, element: dict[str, Any]) -> None:
                 # Draw each segment in the line
                 for segment in line_segments:
                     color = ctx.colors.resolve(segment.color)
-                    bbox = draw.textbbox((segment.start_x, line_y), segment.text, font=font, anchor="lt")
                     draw.text(
                         (segment.start_x, line_y),
                         segment.text,
@@ -125,22 +104,19 @@ async def draw_text(ctx: DrawingContext, element: dict[str, Any]) -> None:
                         stroke_width=stroke_width,
                         stroke_fill=stroke_fill,
                     )
-                    max_y = max(max_y, int(bbox[3]))
-            ctx.pos_y = max_y
+            ctx.pos_y = adjusted_y + total_height
         else:
+            # Apply the vertical anchor component (e.g. 'mm', 'mb') to the single
+            # line too — Pillow honours it on the non-parse path, so parse_colors
+            # must not silently drop it.
+            line_height = _line_height(font)
+            adjusted_y = calculate_anchor_offset_y(y, line_height, anchor)
             segments, total_width = calculate_segment_positions(segments, font, x, align, anchor)
 
-            max_y = y
             for segment in segments:
                 color = ctx.colors.resolve(segment.color)
-                bbox = draw.textbbox(
-                    (segment.start_x, y),
-                    segment.text,
-                    font=font,
-                    anchor="lt",
-                )
                 draw.text(
-                    (segment.start_x, y),
+                    (segment.start_x, adjusted_y),
                     segment.text,
                     fill=color,
                     font=font,
@@ -149,8 +125,7 @@ async def draw_text(ctx: DrawingContext, element: dict[str, Any]) -> None:
                     stroke_width=stroke_width,
                     stroke_fill=stroke_fill,
                 )
-                max_y = max(max_y, int(bbox[3]))
-            ctx.pos_y = max_y
+            ctx.pos_y = adjusted_y + line_height
     else:
         bbox = draw.textbbox((x, y), final_text, font=font, anchor=anchor, spacing=spacing, align=align)
         draw.text(
@@ -206,12 +181,11 @@ async def draw_multiline(ctx: DrawingContext, element: dict[str, Any]) -> None:
     max_y = current_y
     for line in lines:
         if element.get("parse_colors", False):
-            segments = parse_colored_text(str(line))
+            segments = parse_colored_text(str(line), element.get("color", "black"))
             segments, total_width = calculate_segment_positions(segments, font, x, align, anchor)
 
             for segment in segments:
                 color = ctx.colors.resolve(segment.color)
-                draw.textbbox((segment.start_x, current_y), segment.text, font=font, anchor="lt")
                 draw.text(
                     (segment.start_x, current_y),
                     segment.text,
@@ -222,7 +196,6 @@ async def draw_multiline(ctx: DrawingContext, element: dict[str, Any]) -> None:
                     stroke_fill=stroke_fill,
                 )
         else:
-            draw.textbbox((x, current_y), str(line), font=font, anchor=anchor, align=align)
             draw.text(
                 (x, current_y),
                 str(line),
@@ -236,6 +209,80 @@ async def draw_multiline(ctx: DrawingContext, element: dict[str, Any]) -> None:
         max_y = current_y
 
     ctx.pos_y = max_y
+
+
+def _line_height(font: ImageFont.FreeTypeFont) -> int:
+    """Return a line height in pixels using ascender/descender-bearing sample chars."""
+    bbox = font.getbbox("Ay")
+    return int(bbox[3] - bbox[1])
+
+
+def _truncate_to_width(text: str, font: ImageFont.FreeTypeFont, max_width: float, ellipsis: str = "...") -> str:
+    """Truncate *text* with an ellipsis so it fits within *max_width* pixels.
+
+    Binary-searches the cut point (O(n log n)) instead of trimming one character at
+    a time and re-measuring the whole string on each step (O(n^2)), which could take
+    seconds on the event loop for a long templated string.
+
+    Args:
+        text: The text to fit.
+        font: Font used to measure widths.
+        max_width: Maximum width in pixels.
+        ellipsis: String appended to indicate truncation.
+
+    Returns:
+        The original text if it already fits, otherwise the longest prefix plus the
+        ellipsis that fits within ``max_width``.
+    """
+    if font.getlength(text) <= max_width:
+        return text
+    # Largest prefix length whose text + ellipsis still fits (monotonic in length).
+    lo, hi = 0, len(text)
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if font.getlength(text[:mid] + ellipsis) <= max_width:
+            lo = mid
+        else:
+            hi = mid - 1
+    return text[:lo] + ellipsis
+
+
+def _wrap_to_width(text: str, font: ImageFont.FreeTypeFont, max_width: float) -> str:
+    """Word-wrap *text* to fit *max_width*, measuring each word only once.
+
+    Accumulates precomputed word and space widths rather than re-measuring the whole
+    current line for every word (which is quadratic per line).
+
+    Args:
+        text: The text to wrap.
+        font: Font used to measure widths.
+        max_width: Maximum line width in pixels.
+
+    Returns:
+        The text with ``\\n`` inserted at wrap points.
+    """
+    words = text.split()
+    if not words:
+        return ""
+    space_width = font.getlength(" ")
+    lines: list[str] = []
+    current_words: list[str] = []
+    current_width = 0.0
+    for word in words:
+        word_width = font.getlength(word)
+        if not current_words:
+            current_words = [word]
+            current_width = word_width
+        elif current_width + space_width + word_width <= max_width:
+            current_words.append(word)
+            current_width += space_width + word_width
+        else:
+            lines.append(" ".join(current_words))
+            current_words = [word]
+            current_width = word_width
+    if current_words:
+        lines.append(" ".join(current_words))
+    return "\n".join(lines)
 
 
 def get_wrapped_text(text: str, font: ImageFont.ImageFont, line_length: int) -> str:
@@ -261,7 +308,7 @@ def get_wrapped_text(text: str, font: ImageFont.ImageFont, line_length: int) -> 
     return "\n".join(lines)
 
 
-def parse_colored_text(text: str) -> List[TextSegment]:
+def parse_colored_text(text: str, default_color: str = "black") -> List[TextSegment]:
     """Parse text with color markup into text segments.
 
     Breaks text with color markup like "[red]text[/red]" into segments
@@ -269,6 +316,8 @@ def parse_colored_text(text: str) -> List[TextSegment]:
 
     Args:
         text: Text with color markup
+        default_color: Color applied to text outside of any ``[color]`` markup
+            (i.e. the element-level color).
 
     Returns:
         List[TextSegment]: List of text segments with colors
@@ -283,14 +332,14 @@ def parse_colored_text(text: str) -> List[TextSegment]:
     for match in re.finditer(pattern, text, re.DOTALL):
         # Add any text before the match with default color
         if match.start() > current_pos:
-            segments.append(TextSegment(text=text[current_pos : match.start()], color="black"))
+            segments.append(TextSegment(text=text[current_pos : match.start()], color=default_color))
         # Add the matched text with the specified color
         segments.append(TextSegment(text=match.group(2), color=match.group(1)))
         current_pos = match.end()
 
     # Add any remaining text with default color
     if current_pos < len(text):
-        segments.append(TextSegment(text=text[current_pos:], color="black"))
+        segments.append(TextSegment(text=text[current_pos:], color=default_color))
 
     return segments
 

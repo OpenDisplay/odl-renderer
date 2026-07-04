@@ -6,6 +6,7 @@ from typing import Any
 from PIL import ImageDraw
 
 from odl_renderer.colors import BLACK
+from odl_renderer.coordinates import coerce_number
 from odl_renderer.registry import element_handler
 from odl_renderer.types import DrawingContext, ElementType
 
@@ -36,10 +37,10 @@ async def draw_line(ctx: DrawingContext, element: dict[str, Any]) -> None:
 
     # Get line properties
     fill = ctx.colors.resolve(element.get("fill", "black"))
-    width = element.get("width", 1)
+    width = int(coerce_number(element.get("width", 1), 1))
     dashed = element.get("dashed", False)
-    dash_length = element.get("dash_length", 5)
-    space_length = element.get("space_length", 3)
+    dash_length = int(coerce_number(element.get("dash_length", 5), 5))
+    space_length = int(coerce_number(element.get("space_length", 3), 3))
 
     x_start = ctx.coords.parse_x(element["x_start"])
     x_end = ctx.coords.parse_x(element["x_end"])
@@ -74,8 +75,8 @@ async def draw_rectangle(ctx: DrawingContext, element: dict[str, Any]) -> None:
     # Get rectangle properties
     rect_fill = ctx.colors.resolve(element.get("fill"))
     rect_outline = ctx.colors.resolve(element.get("outline", "black"))
-    rect_width = element.get("width", 1)
-    radius = element.get("radius", 10 if "corners" in element else 0)
+    rect_width = int(coerce_number(element.get("width", 1), 1))
+    radius = int(coerce_number(element.get("radius", 10 if "corners" in element else 0)))
     corners = get_rounded_corners(element.get("corners", "all" if "radius" in element else ""))
 
     # Draw rectangle
@@ -111,22 +112,32 @@ async def draw_rectangle_pattern(ctx: DrawingContext, element: dict[str, Any]) -
     # Get pattern properties
     fill = ctx.colors.resolve(element.get("fill"))
     outline = ctx.colors.resolve(element.get("outline", "black"))
-    width = element.get("width", 1)
-    radius = element.get("radius", 10 if "corners" in element else 0)
+    width = int(coerce_number(element.get("width", 1), 1))
+    radius = int(coerce_number(element.get("radius", 10 if "corners" in element else 0)))
     corners = get_rounded_corners(element.get("corners", "all" if "radius" in element else ""))
 
-    max_y = element["y_start"]
+    # Parse geometry once (supports numeric strings and percentages from templates).
+    x_start = ctx.coords.parse_x(element["x_start"])
+    y_start = ctx.coords.parse_y(element["y_start"])
+    x_size = ctx.coords.parse_size(element["x_size"], is_width=True)
+    y_size = ctx.coords.parse_size(element["y_size"], is_width=False)
+    x_offset = ctx.coords.parse_size(element["x_offset"], is_width=True)
+    y_offset = ctx.coords.parse_size(element["y_offset"], is_width=False)
+    x_repeat = int(coerce_number(element["x_repeat"]))
+    y_repeat = int(coerce_number(element["y_repeat"]))
+
+    max_y = y_start
 
     # Draw rectangle grid
-    for x in range(element["x_repeat"]):
-        for y in range(element["y_repeat"]):
+    for x in range(x_repeat):
+        for y in range(y_repeat):
             # Calculate rectangle position
-            x_pos = element["x_start"] + x * (element["x_offset"] + element["x_size"])
-            y_pos = element["y_start"] + y * (element["y_offset"] + element["y_size"])
+            x_pos = x_start + x * (x_offset + x_size)
+            y_pos = y_start + y * (y_offset + y_size)
 
             # Draw individual rectangle
             draw.rounded_rectangle(
-                (x_pos, y_pos, x_pos + element["x_size"], y_pos + element["y_size"]),
+                (x_pos, y_pos, x_pos + x_size, y_pos + y_size),
                 fill=fill,
                 outline=outline,
                 width=width,
@@ -134,7 +145,7 @@ async def draw_rectangle_pattern(ctx: DrawingContext, element: dict[str, Any]) -
                 corners=corners,
             )
 
-            max_y = max(max_y, y_pos + element["y_size"])
+            max_y = max(max_y, y_pos + y_size)
 
     ctx.pos_y = max_y
 
@@ -185,17 +196,18 @@ async def draw_circle(ctx: DrawingContext, element: dict[str, Any]) -> None:
     # Get circle properties
     fill = ctx.colors.resolve(element.get("fill"))
     outline = ctx.colors.resolve(element.get("outline", "black"))
-    width = element.get("width", 1)
+    width = int(coerce_number(element.get("width", 1), 1))
+    radius = ctx.coords.parse_size(element["radius"], is_width=True)
 
     # Draw circle
     draw.ellipse(
-        [(x - element["radius"], y - element["radius"]), (x + element["radius"], y + element["radius"])],
+        [(x - radius, y - radius), (x + radius, y + radius)],
         fill=fill,
         outline=outline,
         width=width,
     )
 
-    ctx.pos_y = y + element["radius"]
+    ctx.pos_y = y + radius
 
 
 @element_handler(ElementType.ELLIPSE, requires=["x_start", "x_end", "y_start", "y_end"])
@@ -220,7 +232,7 @@ async def draw_ellipse(ctx: DrawingContext, element: dict[str, Any]) -> None:
     # Get ellipse properties
     fill = ctx.colors.resolve(element.get("fill"))
     outline = ctx.colors.resolve(element.get("outline", "black"))
-    width = element.get("width", 1)
+    width = int(coerce_number(element.get("width", 1), 1))
 
     # Draw ellipse
     draw.ellipse([(x_start, y_start), (x_end, y_end)], fill=fill, outline=outline, width=width)

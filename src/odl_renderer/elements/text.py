@@ -7,6 +7,7 @@ from typing import Any, List, Tuple
 from PIL import ImageDraw, ImageFont
 
 from odl_renderer.colors import COLOR_TOKEN_PATTERN
+from odl_renderer.coordinates import coerce_number
 from odl_renderer.registry import element_handler
 from odl_renderer.types import DrawingContext, ElementType, TextSegment
 
@@ -34,7 +35,7 @@ async def draw_text(ctx: DrawingContext, element: dict[str, Any]) -> None:
 
     x = ctx.coords.parse_x(element["x"])
     if "y" not in element:
-        y = ctx.pos_y + element.get("y_padding", 10)
+        y = ctx.pos_y + int(coerce_number(element.get("y_padding", 10), 10))
     else:
         y = ctx.coords.parse_y(element["y"])
     # Get text properties
@@ -47,12 +48,14 @@ async def draw_text(ctx: DrawingContext, element: dict[str, Any]) -> None:
     default_color = ctx.colors.resolve(element.get("color", "black"))
     anchor = element.get("anchor")
     spacing = element.get("spacing", 5)
-    stroke_width = element.get("stroke_width", 0)
+    stroke_width = int(coerce_number(element.get("stroke_width", 0), 0))
     stroke_fill = ctx.colors.resolve(element.get("stroke_fill", "white"))
 
     # Process text content
     text = str(element["value"])
     max_width = element.get("max_width")
+    if max_width is not None:
+        max_width = ctx.coords.parse_size(max_width, is_width=True)
 
     # Handle text wrapping if max_width is specified
     final_text = text
@@ -182,14 +185,15 @@ async def draw_multiline(ctx: DrawingContext, element: dict[str, Any]) -> None:
     draw.fontmode = "1"
 
     # Get text properties
-    size = element.get("size", 20)
+    size = ctx.coords.parse_size(element.get("size", 20), is_width=False)
     font_name = element.get("font", "ppb.ttf")
     font = ctx.fonts.get_font(font_name, size)
     color = ctx.colors.resolve(element.get("color", "black"))
     align = element.get("align", "left")
     anchor = element.get("anchor", "lm")
-    stroke_width = element.get("stroke_width", 0)
+    stroke_width = int(coerce_number(element.get("stroke_width", 0), 0))
     stroke_fill = ctx.colors.resolve(element.get("stroke_fill", "white"))
+    offset_y = int(coerce_number(element["offset_y"]))
 
     x = ctx.coords.parse_x(element["x"])
     # Support both 'y' (standard) and 'start_y' (legacy) for backward compatibility
@@ -198,10 +202,11 @@ async def draw_multiline(ctx: DrawingContext, element: dict[str, Any]) -> None:
     elif "start_y" in element:
         current_y = ctx.coords.parse_y(element["start_y"])
     else:
-        current_y = ctx.pos_y + element.get("y_padding", 10)
+        current_y = ctx.pos_y + int(coerce_number(element.get("y_padding", 10), 10))
 
-    # Split text using delimiter
-    lines = element["value"].replace("\n", "").split(element["delimiter"])
+    # Split text using delimiter. str()-coerce the value because HA templates may
+    # render a non-string (e.g. a number) here.
+    lines = str(element["value"]).replace("\n", "").split(element["delimiter"])
 
     max_y = current_y
     for line in lines:
@@ -232,7 +237,7 @@ async def draw_multiline(ctx: DrawingContext, element: dict[str, Any]) -> None:
                 stroke_width=stroke_width,
                 stroke_fill=stroke_fill,
             )
-        current_y += element["offset_y"]
+        current_y += offset_y
         max_y = current_y
 
     ctx.pos_y = max_y

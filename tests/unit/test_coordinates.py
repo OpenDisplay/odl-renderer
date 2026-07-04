@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from odl_renderer.coordinates import CoordinateParser
+import pytest
+
+from odl_renderer.coordinates import CoordinateParser, coerce_number
 
 
 class TestCoordinateParser:
@@ -52,3 +54,29 @@ class TestCoordinateParser:
         x, y = self.parser.parse_coordinates({})
         assert x == 0
         assert y == 0
+
+
+class TestCoerceNumber:
+    """Unit tests for coerce_number (finding A8)."""
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            (50, 50),
+            (2.5, 2.5),
+            ("50", 50.0),
+            ("2.5", 2.5),
+            ("  7  ", 7.0),
+            ("-3", -3.0),
+        ],
+    )
+    def test_parses_numbers_and_numeric_strings(self, value, expected):
+        assert coerce_number(value) == expected
+
+    @pytest.mark.parametrize("value", ["abc", "", "50%", None, "1,2"])
+    def test_non_numeric_returns_default(self, value):
+        assert coerce_number(value, default=99) == 99
+
+    def test_bool_returns_default(self):
+        # Booleans are not meaningful numeric dimensions here.
+        assert coerce_number(True, default=5) == 5

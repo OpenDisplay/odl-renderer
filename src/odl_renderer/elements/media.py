@@ -8,6 +8,7 @@ from PIL import Image
 from resizeimage import resizeimage  # type: ignore[import-untyped]
 
 from odl_renderer.colors import BLACK
+from odl_renderer.coordinates import coerce_number
 from odl_renderer.media_loader import load_image
 from odl_renderer.registry import element_handler
 from odl_renderer.types import DrawingContext, ElementType
@@ -41,8 +42,8 @@ async def draw_qrcode(ctx: DrawingContext, element: dict[str, Any]) -> None:
     # Get QR code properties
     color = ctx.colors.resolve(element.get("color", "black")) or BLACK
     bgcolor = ctx.colors.resolve(element.get("bgcolor", "white")) or BLACK
-    border = element.get("border", 1)
-    boxsize = element.get("boxsize", 2)
+    border = int(coerce_number(element.get("border", 1), 1))
+    boxsize = int(coerce_number(element.get("boxsize", 2), 2))
 
     try:
         # Create QR code instance
@@ -99,7 +100,10 @@ async def draw_downloaded_image(ctx: DrawingContext, element: dict[str, Any]) ->
         # Get image properties
         pos_x = ctx.coords.parse_x(element["x"])
         pos_y = ctx.coords.parse_y(element["y"])
-        target_size = (element["xsize"], element["ysize"])
+        target_size = (
+            ctx.coords.parse_size(element["xsize"], is_width=True),
+            ctx.coords.parse_size(element["ysize"], is_width=False),
+        )
         rotate = element.get("rotate", 0)
         resize_method = element.get("resize_method", "stretch")
 

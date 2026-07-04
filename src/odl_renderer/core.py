@@ -146,7 +146,7 @@ async def _render_transformed(ctx: DrawingContext, handler: Any, element: dict[s
     base.alpha_composite(layer)
 
 
-_FALSY_VISIBLE_STRINGS = frozenset({"false", ""})
+_FALSY_VISIBLE_STRINGS = frozenset({"false", "", "0", "no", "off", "none"})
 
 
 def _coerce_visible(value: Any) -> bool:

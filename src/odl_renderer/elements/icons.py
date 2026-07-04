@@ -14,6 +14,7 @@ from typing import Any
 from PIL import ImageDraw, ImageFont
 
 from odl_renderer.colors import BLACK
+from odl_renderer.coordinates import coerce_number
 from odl_renderer.registry import element_handler
 from odl_renderer.types import DrawingContext, ElementType
 
@@ -97,10 +98,10 @@ async def draw_icon(ctx: DrawingContext, element: dict[str, Any]) -> None:
         raise ValueError(f"Icon '{name}' not found. Search icons at https://pictogrammers.com/library/mdi/")
     char = chr(int(codepoint, 16))
 
-    font = _get_mdi_font(element["size"])
+    font = _get_mdi_font(ctx.coords.parse_size(element["size"], is_width=False))
     color = ctx.colors.resolve(element.get("color") or element.get("fill", "black")) or BLACK
     anchor = element.get("anchor", "la")
-    stroke_width = element.get("stroke_width", 0)
+    stroke_width = int(coerce_number(element.get("stroke_width", 0), 0))
     stroke_fill = ctx.colors.resolve(element.get("stroke_fill", "white"))
 
     draw = ImageDraw.Draw(ctx.img)
@@ -144,11 +145,11 @@ async def draw_icon_sequence(ctx: DrawingContext, element: dict[str, Any]) -> No
     x_start = ctx.coords.parse_x(element["x"])
     y_start = ctx.coords.parse_y(element["y"])
 
-    size = element["size"]
-    spacing = element.get("spacing", size // 4)
+    size = ctx.coords.parse_size(element["size"], is_width=False)
+    spacing = int(coerce_number(element.get("spacing", size // 4), size // 4))
     color = ctx.colors.resolve(element.get("color") or element.get("fill", "black")) or BLACK
     anchor = element.get("anchor", "la")
-    stroke_width = element.get("stroke_width", 0)
+    stroke_width = int(coerce_number(element.get("stroke_width", 0), 0))
     stroke_fill = ctx.colors.resolve(element.get("stroke_fill", "white"))
     direction = element.get("direction", "right")
 

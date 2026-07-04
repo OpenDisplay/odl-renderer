@@ -63,6 +63,18 @@ class TestLoadImage:
         result = await load_image(path)
         assert isinstance(result, Image.Image)
 
+    async def test_file_path_releases_handle(self):
+        """The file is decoded eagerly and its handle released (finding A12)."""
+        png_bytes = _make_png_bytes()
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            f.write(png_bytes)
+            path = f.name
+        result = await load_image(path)
+        # After .load(), Pillow drops the file pointer it owned.
+        assert getattr(result, "fp", None) is None
+        # The image is usable without touching the file again.
+        assert result.convert("RGBA").size == result.size
+
     async def test_nonexistent_file_raises(self):
         with pytest.raises(ValueError, match="not found"):
             await load_image("/nonexistent/path/image.png")

@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import logging
+
+_LOGGER = logging.getLogger(__name__)
+
 _DEFAULT_SIZES = (16, 24, 32, 48, 64, 96)
 
 
@@ -19,4 +23,6 @@ def warmup(sizes: tuple[int, ...] = _DEFAULT_SIZES) -> None:
         try:
             _get_mdi_font(size)
         except Exception:  # noqa: BLE001
-            break
+            # One bad size shouldn't skip pre-warming the rest.
+            _LOGGER.warning("Failed to pre-warm MDI font at size %s", size, exc_info=True)
+            continue

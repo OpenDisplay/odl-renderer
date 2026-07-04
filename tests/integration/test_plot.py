@@ -198,6 +198,25 @@ class TestPlotElement:
         )
         assert isinstance(image, Image.Image)
 
+    async def test_plot_naive_timestamps(self):
+        """Naive (tz-less) last_changed values are treated as UTC, not crash (A12)."""
+        end = datetime.now(timezone.utc)
+        start = end - timedelta(hours=24)
+        step = timedelta(hours=2)
+        naive_states = [
+            # isoformat() on a naive datetime has no offset suffix.
+            {"state": str(20 + i), "last_changed": (start + step * i).replace(tzinfo=None).isoformat()}
+            for i in range(12)
+        ]
+        provider = MockDataProvider({"sensor.temp": naive_states})
+        image = await generate_image(
+            width=296,
+            height=128,
+            elements=[{"type": "plot", "data": [{"entity": "sensor.temp"}]}],
+            data_provider=provider,
+        )
+        assert isinstance(image, Image.Image)
+
     async def test_plot_span_gaps_numeric(self):
         """Time-based gap detection (span_gaps as seconds) doesn't crash."""
         gapped = TEMP_STATES[:8] + TEMP_STATES[16:]  # introduce a gap in the middle

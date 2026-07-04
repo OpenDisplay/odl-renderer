@@ -12,6 +12,10 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
+# Warn only once about creating a throwaway HTTP session, so a dashboard that
+# re-renders every update doesn't repeat the message on every frame.
+_warned_sessionless = False
+
 
 async def load_image(
     source: str | bytes | Image.Image,
@@ -97,6 +101,15 @@ async def _load_from_http(
                 response.raise_for_status()
                 image_bytes = await response.read()
         else:
+            global _warned_sessionless
+            if not _warned_sessionless:
+                _warned_sessionless = True
+                _LOGGER.warning(
+                    "load_image called without a session; creating a temporary aiohttp "
+                    "ClientSession per request. Pass a shared session for connection "
+                    "pooling and DNS caching."
+                )
+
             import aiohttp
 
             async with aiohttp.ClientSession() as temp_session:
@@ -104,7 +117,9 @@ async def _load_from_http(
                     response.raise_for_status()
                     image_bytes = await response.read()
 
-        return Image.open(io.BytesIO(image_bytes))
+        img = Image.open(io.BytesIO(image_bytes))
+        img.load()  # decode now, not later mid-composite
+        return img
 
     except Exception as err:
         raise ValueError(f"Failed to load image from {url}: {err}") from err
@@ -123,7 +138,9 @@ def _load_from_file(file_path: str) -> Image.Image:
         ValueError: If the file doesn't exist or cannot be loaded
     """
     try:
-        return Image.open(file_path)
+        img = Image.open(file_path)
+        img.load()  # force decode now so the file handle is released (no ResourceWarning)
+        return img
     except FileNotFoundError:
         raise ValueError(f"Image file not found: {file_path}")
     except Exception as err:

@@ -191,6 +191,10 @@ def _process_entity_segments(
         try:
             value = float(state["state"]) * value_scale
             timestamp = datetime.fromisoformat(state["last_changed"])
+            # Normalize naive timestamps to UTC so they can be subtracted from the
+            # timezone-aware plot range without raising TypeError.
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=timezone.utc)
 
             should_break = False
             if isinstance(span_gaps, (int, float)) and span_gaps is not True and span_gaps is not False:

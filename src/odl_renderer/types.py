@@ -39,7 +39,8 @@ class DataProvider(Protocol):
             Mapping of entity_id to a list of state records, ordered oldest-first.
             Each record is a dict with at minimum:
                 - "state": str — the state value (e.g. "23.5", "on")
-                - "last_changed": str — ISO 8601 timestamp
+                - "last_changed": str — ISO 8601 timestamp. Prefer a timezone-aware
+                  value (with offset); a naive timestamp is interpreted as UTC.
             Entities with no data in the range may be absent or map to an empty list.
         """
         ...

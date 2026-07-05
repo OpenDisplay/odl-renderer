@@ -807,7 +807,7 @@ wheels = [
 
 [[package]]
 name = "odl-renderer"
-version = "0.5.10"
+version = "0.5.11"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -817,13 +817,24 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+property = [
+    { name = "hypothesis" },
+]
+visual = [
+    { name = "imagehash" },
+    { name = "syrupy" },
+]
+
+[package.dev-dependencies]
 dev = [
     { name = "mypy" },
     { name = "prek" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-xdist" },
     { name = "ruff" },
-]
-property = [
-    { name = "hypothesis" },
+    { name = "time-machine" },
 ]
 test = [
     { name = "pytest" },
@@ -832,30 +843,37 @@ test = [
     { name = "pytest-xdist" },
     { name = "time-machine" },
 ]
-visual = [
-    { name = "imagehash" },
-    { name = "syrupy" },
-]
 
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.13.4" },
     { name = "hypothesis", marker = "extra == 'property'", specifier = ">=6.151.12" },
     { name = "imagehash", marker = "extra == 'visual'", specifier = ">=4.3.2" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.20.0" },
     { name = "pillow", specifier = ">=12.0.0" },
-    { name = "prek", marker = "extra == 'dev'", specifier = ">=0.3.4" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=9.0.3" },
-    { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=1.3.0" },
-    { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=7.1.0" },
-    { name = "pytest-xdist", marker = "extra == 'test'", specifier = ">=3.8.0" },
     { name = "qrcode", extras = ["pil"], specifier = ">=7.4.2" },
     { name = "resize-image", specifier = ">=0.4.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.15.10" },
     { name = "syrupy", marker = "extra == 'visual'", specifier = ">=5.1.0" },
-    { name = "time-machine", marker = "extra == 'test'", specifier = ">=2.9.0" },
 ]
-provides-extras = ["test", "visual", "property", "dev"]
+provides-extras = ["visual", "property"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy", specifier = ">=1.20.0" },
+    { name = "prek", specifier = ">=0.3.4" },
+    { name = "pytest", specifier = ">=9.0.3" },
+    { name = "pytest-asyncio", specifier = ">=1.3.0" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
+    { name = "pytest-xdist", specifier = ">=3.8.0" },
+    { name = "ruff", specifier = ">=0.15.10" },
+    { name = "time-machine", specifier = ">=2.9.0" },
+]
+test = [
+    { name = "pytest", specifier = ">=9.0.3" },
+    { name = "pytest-asyncio", specifier = ">=1.3.0" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
+    { name = "pytest-xdist", specifier = ">=3.8.0" },
+    { name = "time-machine", specifier = ">=2.9.0" },
+]
 
 [[package]]
 name = "packaging"

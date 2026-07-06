@@ -299,6 +299,14 @@ def draw_dashed_line(
     dy = y2 - y1
     line_length = (dx**2 + dy**2) ** 0.5
 
+    # A zero-length line (start == end, easily produced by templated coordinates)
+    # has no direction to step along and would divide by zero below. Draw the single
+    # point if a dash starts there, then stop.
+    if line_length == 0:
+        if dash_length > 0:
+            draw.line([(x1, y1), (x2, y2)], fill=fill, width=width)
+        return
+
     step_x = dx / line_length
     step_y = dy / line_length
 

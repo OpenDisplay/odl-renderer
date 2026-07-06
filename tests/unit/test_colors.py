@@ -143,3 +143,41 @@ class TestColorResolver:
         resolver = ColorResolver()
         assert resolver.resolve("accent") == RED
         assert resolver.resolve("half_accent") == HALF_RED
+
+
+class TestUnresolvedColorWarnings:
+    """Unknown names and malformed hex render white but should warn once (finding A11)."""
+
+    def test_unknown_name_warns_once(self, caplog):
+        import logging
+
+        from odl_renderer import colors
+
+        colors._warned_color_tokens.discard("balck")
+        resolver = ColorResolver()
+        with caplog.at_level(logging.WARNING, logger="odl_renderer.colors"):
+            assert resolver.resolve("balck") == WHITE
+            assert resolver.resolve("balck") == WHITE  # second call must not re-warn
+        warnings = [r for r in caplog.records if "balck" in r.getMessage()]
+        assert len(warnings) == 1
+
+    def test_malformed_hex_warns_once(self, caplog):
+        import logging
+
+        from odl_renderer import colors
+
+        colors._warned_color_tokens.discard("#12345")
+        resolver = ColorResolver()
+        with caplog.at_level(logging.WARNING, logger="odl_renderer.colors"):
+            assert resolver.resolve("#12345") == WHITE
+            assert resolver.resolve("#12345") == WHITE
+        warnings = [r for r in caplog.records if "#12345" in r.getMessage()]
+        assert len(warnings) == 1
+
+    def test_known_color_does_not_warn(self, caplog):
+        import logging
+
+        resolver = ColorResolver()
+        with caplog.at_level(logging.WARNING, logger="odl_renderer.colors"):
+            assert resolver.resolve("red") == RED
+        assert not caplog.records

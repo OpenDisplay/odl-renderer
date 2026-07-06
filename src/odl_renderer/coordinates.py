@@ -1,6 +1,32 @@
 from typing import Any
 
 
+def coerce_number(value: Any, default: float = 0.0) -> float:
+    """Coerce a scalar numeric value to a number, tolerating string input.
+
+    Home Assistant templates render everything to strings, so numeric element
+    fields (widths, counts, progress, …) frequently arrive as ``"50"`` rather
+    than ``50``. Accepts ints, floats and numeric strings; returns *default* for
+    ``None`` or non-numeric input. Percentages are NOT handled here — use
+    :class:`CoordinateParser` for dimension fields that support ``"50%"``.
+
+    Args:
+        value: The raw value (number or string).
+        default: Value returned when *value* cannot be parsed.
+
+    Returns:
+        The parsed number, or *default*.
+    """
+    if isinstance(value, bool):
+        return default
+    if isinstance(value, (int, float)):
+        return value
+    try:
+        return float(str(value).strip())
+    except (ValueError, TypeError):
+        return default
+
+
 class CoordinateParser:
     """Helper class for parsing coordinates with percentage support.
 

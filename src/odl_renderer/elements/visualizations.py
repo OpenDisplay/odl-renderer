@@ -8,6 +8,7 @@ from typing import Any
 
 from PIL import ImageDraw
 
+from odl_renderer.coordinates import coerce_number
 from odl_renderer.registry import element_handler
 from odl_renderer.types import DrawingContext, ElementType
 
@@ -604,10 +605,10 @@ async def draw_plot(ctx: DrawingContext, element: dict[str, Any]) -> None:
         raise ValueError("plot element requires a data_provider in DrawingContext")
 
     draw = ImageDraw.Draw(ctx.img)
-    x_start = element.get("x_start", 0)
-    y_start = element.get("y_start", 0)
-    x_end = element.get("x_end", ctx.img.width - 1 - x_start)
-    y_end = element.get("y_end", ctx.img.height - 1 - y_start)
+    x_start = ctx.coords.parse_x(element.get("x_start", 0))
+    y_start = ctx.coords.parse_y(element.get("y_start", 0))
+    x_end = ctx.coords.parse_x(element["x_end"]) if "x_end" in element else ctx.img.width - 1 - x_start
+    y_end = ctx.coords.parse_y(element["y_end"]) if "y_end" in element else ctx.img.height - 1 - y_start
     font_name = element.get("font", "ppb.ttf")
 
     duration_seconds = float(element.get("duration", 60 * 60 * 24))
@@ -710,12 +711,12 @@ async def draw_progress_bar(ctx: DrawingContext, element: dict[str, Any]) -> Non
     x_end = ctx.coords.parse_x(element["x_end"])
     y_end = ctx.coords.parse_y(element["y_end"])
 
-    progress = min(100, max(0, element["progress"]))  # Clamp to 0-100
+    progress = min(100, max(0, coerce_number(element["progress"])))  # Clamp to 0-100
     direction = element.get("direction", "right")
     background = ctx.colors.resolve(element.get("background", "white"))
     fill = ctx.colors.resolve(element.get("fill", "red"))
     outline = ctx.colors.resolve(element.get("outline", "black"))
-    width = element.get("width", 1)
+    width = int(coerce_number(element.get("width", 1), 1))
     show_percentage = element.get("show_percentage", False)
     font_name = element.get("font_name", "ppb.ttf")
 
@@ -749,7 +750,7 @@ async def draw_progress_bar(ctx: DrawingContext, element: dict[str, Any]) -> Non
         font_size = min(y_end - y_start - 4, x_end - x_start - 4, 20)
         font = ctx.fonts.get_font(font_name, font_size)
 
-        percentage_text = f"{progress}%"
+        percentage_text = f"{progress:g}%"
 
         # Get text dimensions
         text_bbox = draw.textbbox((0, 0), percentage_text, font=font)

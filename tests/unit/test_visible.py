@@ -25,12 +25,15 @@ from odl_renderer.core import _coerce_visible
         # Surrounding whitespace is stripped before comparison.
         ("  false  ", False),
         ("  true  ", True),
-        # Narrowed set: only "false"/empty are falsy. Other words stay truthy
-        # so a value that happens to be "no"/"0"/"none" is not silently hidden.
-        ("no", True),
-        ("off", True),
-        ("0", True),
-        ("none", True),
+        # Common falsy string forms hide too — a template rendering {{ 0 }} yields
+        # "0", and "no"/"off"/"none" read as hidden rather than silently shown.
+        ("no", False),
+        ("off", False),
+        ("0", False),
+        ("none", False),
+        ("No", False),
+        ("OFF", False),
+        # Other words stay truthy.
         ("null", True),
         ("1", True),
         ("yes", True),

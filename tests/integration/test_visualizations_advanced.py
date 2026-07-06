@@ -90,3 +90,19 @@ class TestDiagramElement:
             elements=[{"type": "diagram", "x": 0, "height": 80, "width": 150}],
         )
         assert image.size == (200, 150)
+
+    async def test_diagram_all_zero_bars(self):
+        """All-zero bar values must not raise ZeroDivisionError (finding A3)."""
+        image = await generate_image(
+            width=200,
+            height=150,
+            elements=[
+                {
+                    "type": "diagram",
+                    "x": 0,
+                    "height": 100,
+                    "bars": {"values": "a,0;b,0", "color": "black"},
+                }
+            ],
+        )
+        assert image.size == (200, 150)

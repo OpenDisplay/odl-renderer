@@ -4,6 +4,7 @@ import pytest
 from PIL import Image
 
 from odl_renderer import generate_image
+from odl_renderer.elements.visualizations import _smooth_segment
 
 
 def make_states(count: int, values: list[float]) -> list[dict]:
@@ -157,6 +158,54 @@ class TestPlotElement:
         )
         assert isinstance(image, Image.Image)
 
+    async def test_plot_skipped_entity_does_not_shift_config(self):
+        """An entity with no valid data must not lend its style to the next series (A1).
+
+        sensor.a is all-unavailable and configured red; sensor.b has real data and is
+        configured black. Only sensor.b should draw, and it must be black — if the
+        skipped entity shifted the config/segment pairing, sensor.b would render red.
+        """
+        end = datetime.now(timezone.utc)
+        unavailable = [
+            {"state": "unavailable", "last_changed": (end - timedelta(hours=24 - i)).isoformat()} for i in range(24)
+        ]
+        provider = MockDataProvider({"sensor.a": unavailable, "sensor.b": TEMP_STATES})
+        image = await generate_image(
+            width=296,
+            height=128,
+            elements=[
+                {
+                    "type": "plot",
+                    "data": [
+                        {"entity": "sensor.a", "color": "red"},
+                        {"entity": "sensor.b", "color": "black"},
+                    ],
+                }
+            ],
+            data_provider=provider,
+        )
+        colors = {c for _, c in image.convert("RGB").getcolors(maxcolors=100000)}
+        assert (255, 0, 0) not in colors, "sensor.b was drawn with sensor.a's red style"
+
+    async def test_plot_huge_spread_does_not_hang(self):
+        """A pathological value spread with a grid must render quickly, not hang (A2)."""
+        states = make_states(4, [0.0, 1_000_000.0, 500_000.0, 250_000.0])
+        provider = MockDataProvider({"sensor.counter": states})
+        image = await generate_image(
+            width=200,
+            height=100,
+            elements=[
+                {
+                    "type": "plot",
+                    "data": [{"entity": "sensor.counter"}],
+                    "yaxis": {"grid": True},
+                    "ylegend": {},
+                }
+            ],
+            data_provider=provider,
+        )
+        assert isinstance(image, Image.Image)
+
     async def test_plot_step_style(self):
         """Step line style renders without error."""
         provider = MockDataProvider({"sensor.temp": TEMP_STATES})
@@ -214,3 +263,10 @@ class TestPlotElement:
             data_provider=provider,
         )
         assert isinstance(image, Image.Image)
+
+
+def test_smooth_segment_three_points_keeps_middle():
+    """A 3-point series must curve through its middle point, not collapse (A5)."""
+    result = _smooth_segment([(0, 100), (50, 0), (100, 100)], 10)
+    assert len(result) > 2, "smoothing collapsed the 3-point series to a straight line"
+    assert min(y for _, y in result) < 50, "the middle peak/dip was dropped"

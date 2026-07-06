@@ -12,6 +12,31 @@ _LOGGER = logging.getLogger(__name__)
 # Assets directory (bundled fonts)
 _ASSETS_DIR = Path(__file__).parent / "assets"
 
+# Module-level cache of loaded fonts keyed by (resolved_path, size), shared across
+# every FontManager instance. core.generate_image() builds a fresh FontManager per
+# call, so without this the truetype file would be re-read from disk on every render
+# (blocking I/O on the event loop — several ms per render on an SD card). Mirrors the
+# module-level MDI font cache in elements/icons.py.
+_truetype_cache: dict[Tuple[str, int], ImageFont.FreeTypeFont] = {}
+
+
+def _load_truetype(path: str, size: int) -> ImageFont.FreeTypeFont:
+    """Load a TrueType font, reusing the process-wide cache when possible.
+
+    Args:
+        path: Absolute path to the font file.
+        size: Font size in pixels.
+
+    Returns:
+        The loaded (and cached) font object.
+    """
+    key = (path, size)
+    cached = _truetype_cache.get(key)
+    if cached is None:
+        cached = ImageFont.truetype(path, size)
+        _truetype_cache[key] = cached
+    return cached
+
 
 class FontManager:
     """Manages font loading and caching.
@@ -83,7 +108,7 @@ class FontManager:
             if not os.path.exists(font_spec):
                 raise ValueError(f"Font file not found: {font_spec}")
             try:
-                return ImageFont.truetype(font_spec, size)
+                return _load_truetype(font_spec, size)
             except (OSError, IOError) as err:
                 raise ValueError(f"Failed to load font from {font_spec}: {err}") from err
 
@@ -95,7 +120,7 @@ class FontManager:
             candidate = os.path.join(directory, font_name)
             if os.path.isfile(candidate):
                 try:
-                    return ImageFont.truetype(candidate, size)
+                    return _load_truetype(candidate, size)
                 except (OSError, IOError) as err:
                     _LOGGER.warning("Failed to load font from %s: %s", candidate, err)
 
@@ -103,7 +128,7 @@ class FontManager:
         asset_path = _ASSETS_DIR / font_name
         if asset_path.exists():
             try:
-                return ImageFont.truetype(str(asset_path), size)
+                return _load_truetype(str(asset_path), size)
             except (OSError, IOError) as err:
                 raise ValueError(f"Failed to load built-in font '{font_name}': {err}") from err
 

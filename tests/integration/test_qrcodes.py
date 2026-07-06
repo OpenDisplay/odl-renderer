@@ -47,3 +47,15 @@ class TestQRCodeRendering:
         image = await generate_image(width=200, height=200, elements=[E.qrcode("", x=100, y=100, size=100)])
 
         assert image.size == (200, 200)
+
+
+def test_qr_image_cache_reuses_render():
+    """Identical QR inputs reuse a cached rendered image (B5)."""
+    from odl_renderer.elements.media import _render_qr_image
+
+    a = _render_qr_image("https://example.org", 2, 1, (0, 0, 0), (255, 255, 255))
+    b = _render_qr_image("https://example.org", 2, 1, (0, 0, 0), (255, 255, 255))
+    assert a is b  # cache hit — no regeneration
+
+    c = _render_qr_image("https://different.org", 2, 1, (0, 0, 0), (255, 255, 255))
+    assert c is not a  # different data → distinct render

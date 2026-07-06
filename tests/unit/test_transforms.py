@@ -7,6 +7,7 @@ from odl_renderer.transforms import (
     _anchor_point,
     _resolve_pivot,
     apply_transform,
+    apply_transform_region,
     has_transform,
 )
 
@@ -116,3 +117,54 @@ class TestApplyTransform:
         layer = _layer_with_box()
         out = apply_transform(layer, mirror="x")
         assert ImageChops.difference(layer, out).getbbox() is None
+
+
+def _composited(size, box, color, **transform_kwargs):
+    """Full-canvas transform then composite over white — the reference path."""
+    base = Image.new("RGBA", size, (255, 255, 255, 255))
+    layer = _layer_with_box(size=size, box=box, color=color)
+    base.alpha_composite(apply_transform(layer, **transform_kwargs))
+    return base
+
+
+def _composited_region(size, box, color, **transform_kwargs):
+    """Region-cropped transform then composite over white — the optimized path."""
+    base = Image.new("RGBA", size, (255, 255, 255, 255))
+    layer = _layer_with_box(size=size, box=box, color=color)
+    result = apply_transform_region(layer, **transform_kwargs)
+    if result is not None:
+        transformed, offset = result
+        base.alpha_composite(transformed, offset)
+    return base
+
+
+class TestApplyTransformRegion:
+    """apply_transform_region must be pixel-identical to the full-canvas path (B1)."""
+
+    def test_empty_layer_returns_none(self):
+        empty = Image.new("RGBA", (100, 100), (0, 0, 0, 0))
+        assert apply_transform_region(empty, rotation=45) is None
+
+    def test_rotation_matches_full(self):
+        ref = _composited((200, 120), (40, 30, 110, 80), (0, 0, 0, 255), rotation=37)
+        opt = _composited_region((200, 120), (40, 30, 110, 80), (0, 0, 0, 255), rotation=37)
+        assert ImageChops.difference(ref, opt).getbbox() is None
+
+    def test_mirror_and_rotation_matches_full(self):
+        kw = dict(rotation=20, mirror="hv")
+        ref = _composited((200, 120), (30, 20, 90, 70), (255, 0, 0, 255), **kw)
+        opt = _composited_region((200, 120), (30, 20, 90, 70), (255, 0, 0, 255), **kw)
+        assert ImageChops.difference(ref, opt).getbbox() is None
+
+    def test_off_center_pivot_matches_full(self):
+        coords = CoordinateParser(200, 120)
+        kw = dict(rotation=50, pivot=[150, 100], coords=coords)
+        ref = _composited((200, 120), (10, 10, 60, 40), (0, 0, 0, 255), **kw)
+        opt = _composited_region((200, 120), (10, 10, 60, 40), (0, 0, 0, 255), **kw)
+        assert ImageChops.difference(ref, opt).getbbox() is None
+
+    def test_near_edge_content_matches_full(self):
+        # Rotation pushes part of the element off-canvas; both paths must clip the same.
+        ref = _composited((200, 120), (150, 5, 195, 45), (0, 0, 0, 255), rotation=60)
+        opt = _composited_region((200, 120), (150, 5, 195, 45), (0, 0, 0, 255), rotation=60)
+        assert ImageChops.difference(ref, opt).getbbox() is None

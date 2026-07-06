@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import logging
 from typing import Any
 
@@ -14,6 +15,35 @@ from odl_renderer.registry import element_handler
 from odl_renderer.types import DrawingContext, ElementType
 
 _LOGGER = logging.getLogger(__name__)
+
+
+@functools.lru_cache(maxsize=32)
+def _render_qr_image(
+    data: str,
+    boxsize: int,
+    border: int,
+    fill: tuple[int, int, int],
+    back: tuple[int, int, int],
+) -> Image.Image:
+    """Render (and cache) a QR code image.
+
+    Generating a QR code costs ~5 ms, almost all in the library's best-mask-pattern
+    search, and e-paper dashboards re-render the same QR (Wi-Fi creds, a URL) on
+    every update. Caching by the inputs that determine the pixels turns the
+    steady-state cost to ~0. The returned image must not be mutated by callers
+    (it is composited read-only).
+    """
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=boxsize,
+        border=border,
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color=fill, back_color=back)
+    rgba: Image.Image = qr_img.convert("RGBA")
+    return rgba
 
 
 @element_handler(ElementType.QRCODE, requires=["x", "y", "data"])
@@ -46,21 +76,8 @@ async def draw_qrcode(ctx: DrawingContext, element: dict[str, Any]) -> None:
     boxsize = int(coerce_number(element.get("boxsize", 2), 2))
 
     try:
-        # Create QR code instance
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_H,
-            box_size=boxsize,
-            border=border,
-        )
-
-        # Add data and generate QR code
-        qr.add_data(element["data"])
-        qr.make(fit=True)
-
-        # Create QR code image (convert RGBA to RGB for fill/back colors)
-        qr_img = qr.make_image(fill_color=color[:3], back_color=bgcolor[:3])
-        qr_img = qr_img.convert("RGBA")
+        # Render (or reuse a cached) QR code image for these exact inputs.
+        qr_img = _render_qr_image(str(element["data"]), boxsize, border, color[:3], bgcolor[:3])
 
         # Paste QR code onto main image
         ctx.img.paste(qr_img, (x, y), qr_img)
@@ -127,16 +144,19 @@ async def draw_downloaded_image(ctx: DrawingContext, element: dict[str, Any]) ->
             if source_img.size != target_size:
                 source_img = source_img.resize(target_size)
 
-        # Convert to RGBA
+        # Convert to RGBA and composite in place — avoids allocating and blending
+        # a full-canvas temporary image three times per dlimg. Clip to the canvas
+        # first so a partially off-canvas image doesn't raise (alpha_composite
+        # requires the source to fit within the destination).
         source_img = source_img.convert("RGBA")
-
-        # Create temporary image for composition
-        temp_img = Image.new("RGBA", ctx.img.size)
-        temp_img.paste(source_img, (pos_x, pos_y), source_img)
-
-        # Composite images
-        img_composite = Image.alpha_composite(ctx.img, temp_img)
-        ctx.img.paste(img_composite, (0, 0))
+        crop_left = max(0, -pos_x)
+        crop_top = max(0, -pos_y)
+        crop_right = min(source_img.width, ctx.img.width - pos_x)
+        crop_bottom = min(source_img.height, ctx.img.height - pos_y)
+        if crop_right > crop_left and crop_bottom > crop_top:
+            if (crop_left, crop_top, crop_right, crop_bottom) != (0, 0, source_img.width, source_img.height):
+                source_img = source_img.crop((crop_left, crop_top, crop_right, crop_bottom))
+            ctx.img.alpha_composite(source_img, (pos_x + crop_left, pos_y + crop_top))
 
         # Update vertical position
         ctx.pos_y = pos_y + target_size[1]

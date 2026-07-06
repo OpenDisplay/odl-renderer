@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.5.12](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.11...odl-renderer-v0.5.12) (2026-07-06)
+
+
+### Bug Fixes
+
+* **coercion:** tolerate string/percentage input on numeric fields; widen visible ([0238de2](https://github.com/OpenDisplay/odl-renderer/commit/0238de2049779974d7e94e63ebd0f6bd9bfbcbc2))
+* **coercion:** tolerate string/percentage input on numeric fields; widen visible falsy set ([55678b2](https://github.com/OpenDisplay/odl-renderer/commit/55678b28e40d89dd971a1255151906022a29f6ae))
+* **plot:** prevent crashes, hangs, and wrong-series rendering ([81d0884](https://github.com/OpenDisplay/odl-renderer/commit/81d0884ab33609b3e561e566d6a20d0c7b7c2cfa))
+* **plot:** prevent crashes, hangs, and wrong-series rendering ([d268857](https://github.com/OpenDisplay/odl-renderer/commit/d26885722598da3c73e2dea895fd9f77d327f1bf))
+* **shapes,colors:** guard zero-length dashed line; warn on unresolved colors ([7bfe12b](https://github.com/OpenDisplay/odl-renderer/commit/7bfe12b48bd7a1cd0b09ebf3f13d4163f5c61881))
+* **shapes,colors:** guard zero-length dashed line; warn on unresolved colors ([44303d5](https://github.com/OpenDisplay/odl-renderer/commit/44303d5eae7139b86b86fd45ba51cec334f208d3))
+* **text:** honor element color/anchor on parse_colors path and drop O(n^2) fitting ([0e2cce2](https://github.com/OpenDisplay/odl-renderer/commit/0e2cce29beec69f536b782e3520045177b9f6dd9))
+* **text:** honor element color/anchor on parse_colors path and drop O(n²) fitting ([e4d6b05](https://github.com/OpenDisplay/odl-renderer/commit/e4d6b059eb07d3f710a62bcf75aad28ca677fa9a))
+
+
+### Performance Improvements
+
+* crop element transforms, composite dlimg in place, cache fonts and QR codes ([5e3e919](https://github.com/OpenDisplay/odl-renderer/commit/5e3e9197c3d8f93d59aa4933a0b482103fa30476))
+* crop element transforms, composite dlimg in place, cache fonts and QR codes ([fbbb3dd](https://github.com/OpenDisplay/odl-renderer/commit/fbbb3dd89c7e26773b330b43f9ed1dd31a2898e2))
+
+
+### Tests
+
+* refresh visual snapshots after merging the fix/perf train ([f23721d](https://github.com/OpenDisplay/odl-renderer/commit/f23721d3767b4a7b0b4a03793592e4feb66cfa47))
+* refresh visual snapshots after merging the fix/perf train ([4ae61eb](https://github.com/OpenDisplay/odl-renderer/commit/4ae61ebf7ab9d0615867d3abce157c54a592f129))
+
 ## [0.5.11](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.10...odl-renderer-v0.5.11) (2026-07-02)
 
 

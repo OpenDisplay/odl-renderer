@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.13](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.12...odl-renderer-v0.5.13) (2026-08-30)
+
+
+### Documentation
+
+* add anchor example screenshot to README ([#36](https://github.com/OpenDisplay/odl-renderer/issues/36)) ([e51fc7f](https://github.com/OpenDisplay/odl-renderer/commit/e51fc7fea959c1279b234930c210b67765f1b231))
+
 ## [0.5.12](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.11...odl-renderer-v0.5.12) (2026-07-06)
 
 

@@ -128,7 +128,7 @@ Coordinates accept either absolute integers (`10`, `256`) or percentage strings 
 
 When `y` is omitted, elements stack automatically: each element is placed below the previous one using `pos_y + y_padding` (default padding: 10px).
 
-### Anchors
+### `anchor`
 
 Used by `text`, `icon`, and `icon_sequence` to set which point of the element aligns to the given `x`/`y` coordinates, and by `pivot` (see [rotation](#rotation)/[mirror](#mirror)) to set the transform origin.
 
@@ -147,6 +147,32 @@ All of them use the PIL anchor format — horizontal axis first, then vertical:
 | `rb` | Right-bottom    |
 
 `icon` and `icon_sequence` default to `la` (left-ascender) rather than `lt`; otherwise the codes are identical.
+
+Each label below is drawn with its own anchor code at a crosshair; the intersection of the two gray lines is the `x`/`y` coordinate the text is anchored to:
+
+```yaml
+[
+    # Illustration only — crosshairs marking the nine x/y coordinates:
+    {"type": "line", "x_start": 0, "x_end": 296, "y_start": 30, "fill": "gray"},
+    {"type": "line", "x_start": 0, "x_end": 296, "y_start": 64, "fill": "gray"},
+    {"type": "line", "x_start": 0, "x_end": 296, "y_start": 98, "fill": "gray"},
+    {"type": "line", "x_start": 55, "x_end": 55, "y_start": 0, "y_end": 128, "fill": "gray"},
+    {"type": "line", "x_start": 148, "x_end": 148, "y_start": 0, "y_end": 128, "fill": "gray"},
+    {"type": "line", "x_start": 241, "x_end": 241, "y_start": 0, "y_end": 128, "fill": "gray"},
+
+    {"type": "text", "value": "lt", "x": 55, "y": 30, "size": 18, "anchor": "lt"},
+    {"type": "text", "value": "mt", "x": 148, "y": 30, "size": 18, "anchor": "mt"},
+    {"type": "text", "value": "rt", "x": 241, "y": 30, "size": 18, "anchor": "rt"},
+    {"type": "text", "value": "lm", "x": 55, "y": 64, "size": 18, "anchor": "lm"},
+    {"type": "text", "value": "mm", "x": 148, "y": 64, "size": 18, "anchor": "mm"},
+    {"type": "text", "value": "rm", "x": 241, "y": 64, "size": 18, "anchor": "rm"},
+    {"type": "text", "value": "lb", "x": 55, "y": 98, "size": 18, "anchor": "lb"},
+    {"type": "text", "value": "mb", "x": 148, "y": 98, "size": 18, "anchor": "mb"},
+    {"type": "text", "value": "rb", "x": 241, "y": 98, "size": 18, "anchor": "rb"}
+]
+```
+
+![anchor example](https://raw.githubusercontent.com/OpenDisplay/odl-renderer/main/docs/screenshots/anchor.png)
 
 ### The `visible` field
 
@@ -171,7 +197,7 @@ Every element type accepts an optional `rotation` (degrees, **positive = clockwi
 | Field      | Required | Default          | Notes                                                                              |
 |------------|----------|------------------|------------------------------------------------------------------------------------|
 | `rotation` | no       | `0`              | Degrees, positive = clockwise                                                       |
-| `pivot`    | no       | `"mm"` (center)  | [Anchor](#anchors) keyword relative to the element (e.g. `lt`, `mm`, `rb`), **or** `[x, y]` canvas coords (percentages allowed, e.g. `["50%", "50%"]`) |
+| `pivot`    | no       | `"mm"` (center)  | [Anchor](#anchor) keyword relative to the element (e.g. `lt`, `mm`, `rb`), **or** `[x, y]` canvas coords (percentages allowed, e.g. `["50%", "50%"]`) |
 
 > Not to be confused with the `image`/`dlimg`-only `rotate` field, which rotates the *source image before fitting it to the box*. Use `rotation` to tilt any rendered element on the canvas.
 

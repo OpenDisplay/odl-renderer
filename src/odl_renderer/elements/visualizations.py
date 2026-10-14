@@ -10,6 +10,13 @@ from typing import Any
 from PIL import ImageDraw
 
 from odl_renderer.coordinates import coerce_number
+from odl_renderer.elements.patterns import (
+    ShapeStyle,
+    bounding_box,
+    paint_shape,
+    parse_pattern,
+    rectangle_shape,
+)
 from odl_renderer.registry import element_handler
 from odl_renderer.types import DrawingContext, ElementType
 
@@ -540,6 +547,28 @@ def _render_x_labels(
         curr_time += timedelta(seconds=xlc.interval)
 
 
+def _paint_area_under_line(
+    ctx: DrawingContext,
+    plot_config: dict[str, Any],
+    line_points: list[tuple[int, int]],
+    diag: SimpleNamespace,
+) -> None:
+    """Fill the area between a series and the bottom of the diagram with its ``pattern``."""
+    pattern = parse_pattern(plot_config.get("pattern"), default_color=plot_config.get("color", "black"))
+    if pattern is None:
+        return
+    bottom = diag.y + diag.height - 1
+    outline = [*line_points, (line_points[-1][0], bottom), (line_points[0][0], bottom)]
+
+    def shape(draw: ImageDraw.ImageDraw, dx: int, dy: int, **paint: Any) -> None:
+        draw.polygon([(x + dx, y + dy) for x, y in outline], **paint)
+
+    xs = [x for x, _ in outline]
+    ys = [y for _, y in outline]
+    style = ShapeStyle(fill=None, outline=None, width=0, pattern=pattern)
+    paint_shape(ctx, style, (min(xs), min(ys), max(xs), max(ys)), shape)
+
+
 def _render_series(
     draw: ImageDraw.ImageDraw,
     ctx: DrawingContext,
@@ -577,10 +606,13 @@ def _render_series(
                         step_points.append((curr_x, prev_y))
                         step_points.append((curr_x, curr_y))
                     points = step_points
-                if smooth and len(points) > 2 and line_style != "step":
-                    draw.line(_smooth_segment(points, steps), fill=line_color, width=line_width, joint="curve")
+                smoothed = smooth and len(points) > 2 and line_style != "step"
+                line_points = _smooth_segment(points, steps) if smoothed else points
+                _paint_area_under_line(ctx, plot_config, line_points, diag)
+                if smoothed:
+                    draw.line(line_points, fill=line_color, width=line_width, joint="curve")
                 else:
-                    draw.line(points, fill=line_color, width=line_width)
+                    draw.line(line_points, fill=line_color, width=line_width)
 
         if plot_config.get("show_points", False):
             point_size = plot_config.get("point_size", 3)
@@ -753,7 +785,10 @@ def draw_progress_bar(ctx: DrawingContext, element: dict[str, Any]) -> None:
     font_name = element.get("font_name", "ppb.ttf")
 
     # Draw background
-    draw.rectangle(((x_start, y_start), (x_end, y_end)), fill=background, outline=outline, width=width)
+    background_style = ShapeStyle(background, outline, width, parse_pattern(element.get("background_pattern")))
+    paint_shape(
+        ctx, background_style, (x_start, y_start, x_end, y_end), rectangle_shape(x_start, y_start, x_end, y_end)
+    )
 
     # Calculate progress dimensions
     if direction in ["right", "left"]:
@@ -764,14 +799,18 @@ def draw_progress_bar(ctx: DrawingContext, element: dict[str, Any]) -> None:
         progress_height = int((y_end - y_start) * (progress / 100))
 
     # Draw progress
+    progress_box = None
     if direction == "right":
-        draw.rectangle((x_start, y_start, x_start + progress_width, y_end), fill=fill)
+        progress_box = (x_start, y_start, x_start + progress_width, y_end)
     elif direction == "left":
-        draw.rectangle((x_end - progress_width, y_start, x_end, y_end), fill=fill)
+        progress_box = (x_end - progress_width, y_start, x_end, y_end)
     elif direction == "up":
-        draw.rectangle((x_start, y_end - progress_height, x_end, y_end), fill=fill)
+        progress_box = (x_start, y_end - progress_height, x_end, y_end)
     elif direction == "down":
-        draw.rectangle((x_start, y_start, x_end, y_start + progress_height), fill=fill)
+        progress_box = (x_start, y_start, x_end, y_start + progress_height)
+    if progress_box is not None:
+        progress_style = ShapeStyle(fill, None, width, parse_pattern(element.get("pattern")))
+        paint_shape(ctx, progress_style, progress_box, rectangle_shape(*progress_box))
 
     # Draw outline
     draw.rectangle((x_start, y_start, x_end, y_end), fill=None, outline=outline, width=width)
@@ -868,6 +907,7 @@ def draw_diagram(ctx: DrawingContext, element: dict[str, Any]) -> None:
             return
 
         height_factor = (height - offset_lines) / max_val
+        bar_pattern = parse_pattern(bar_config.get("pattern"))
 
         # Draw bars and legends
         for bar_pos, bar in enumerate(bar_data):
@@ -889,15 +929,19 @@ def draw_diagram(ctx: DrawingContext, element: dict[str, Any]) -> None:
 
                 # Draw bar
                 bar_height = height_factor * value
-                draw.rectangle(
-                    (
-                        x_pos,
-                        ctx.pos_y + height - offset_lines - bar_height,
-                        x_pos + bar_width,
-                        ctx.pos_y + height - offset_lines,
-                    ),
-                    fill=ctx.colors.resolve(bar_config["color"]),
+                bar_box = (
+                    x_pos,
+                    ctx.pos_y + height - offset_lines - bar_height,
+                    x_pos + bar_width,
+                    ctx.pos_y + height - offset_lines,
                 )
+                bar_style = ShapeStyle(
+                    fill=ctx.colors.resolve(bar_config["color"]),
+                    outline=None,
+                    width=0,
+                    pattern=bar_pattern,
+                )
+                paint_shape(ctx, bar_style, bounding_box(*bar_box), rectangle_shape(*bar_box))
 
             except (ValueError, IndexError, KeyError) as e:
                 raise ValueError(f"Invalid bar data: {e}") from e

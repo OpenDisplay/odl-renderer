@@ -7,6 +7,7 @@ from PIL import ImageDraw
 
 from odl_renderer.colors import BLACK
 from odl_renderer.coordinates import coerce_number
+from odl_renderer.elements.patterns import ShapeStyle, paint_shape, parse_pattern
 from odl_renderer.registry import element_handler
 from odl_renderer.types import DrawingContext, ElementType
 
@@ -53,41 +54,42 @@ def draw_line(ctx: DrawingContext, element: dict[str, Any]) -> None:
     ctx.pos_y = max(y_start, y_end)
 
 
+def shape_style(ctx: DrawingContext, element: dict[str, Any]) -> ShapeStyle:
+    """Read the fill, outline, outline width and pattern a shape element asks for."""
+    return ShapeStyle(
+        fill=ctx.colors.resolve(element.get("fill")),
+        outline=ctx.colors.resolve(element.get("outline", "black")),
+        width=int(coerce_number(element.get("width", 1), 1)),
+        pattern=parse_pattern(element.get("pattern")),
+    )
+
+
 @element_handler(ElementType.RECTANGLE, requires=["x_start", "x_end", "y_start", "y_end"])
 def draw_rectangle(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """
     Draw rectangle element.
 
-    Renders a rectangle with options for fill, outline, and rounded corners.
+    Renders a rectangle with options for fill, pattern, outline, and rounded corners.
 
     Args:
         ctx: Drawing context
         element: Element dictionary with rectangle properties
     """
-    draw = ImageDraw.Draw(ctx.img)
-
     # Coordinates
     x_start = ctx.coords.parse_x(element["x_start"])
     x_end = ctx.coords.parse_x(element["x_end"])
     y_start = ctx.coords.parse_y(element["y_start"])
     y_end = ctx.coords.parse_y(element["y_end"])
 
-    # Get rectangle properties
-    rect_fill = ctx.colors.resolve(element.get("fill"))
-    rect_outline = ctx.colors.resolve(element.get("outline", "black"))
-    rect_width = int(coerce_number(element.get("width", 1), 1))
     radius = int(coerce_number(element.get("radius", 10 if "corners" in element else 0)))
     corners = get_rounded_corners(element.get("corners", "all" if "radius" in element else ""))
 
-    # Draw rectangle
-    draw.rounded_rectangle(
-        (x_start, y_start, x_end, y_end),
-        fill=rect_fill,
-        outline=rect_outline,
-        width=rect_width,
-        radius=radius,
-        corners=corners,
-    )
+    def shape(draw: ImageDraw.ImageDraw, dx: int, dy: int, **paint: Any) -> None:
+        box = (x_start + dx, y_start + dy, x_end + dx, y_end + dy)
+        draw.rounded_rectangle(box, radius=radius, corners=corners, **paint)
+
+    box = (min(x_start, x_end), min(y_start, y_end), max(x_start, x_end), max(y_start, y_end))
+    paint_shape(ctx, shape_style(ctx, element), box, shape)
 
     ctx.pos_y = y_end
 
@@ -160,52 +162,39 @@ def draw_polygon(ctx: DrawingContext, element: dict[str, Any]) -> None:
         ctx: Drawing context
         element: Element dictionary with polygon properties
     """
-    draw = ImageDraw.Draw(ctx.img)
-
-    # Parse vertices
     vertices = [(ctx.coords.parse_x(x), ctx.coords.parse_y(y)) for x, y in element["points"]]
+    if not vertices:
+        return
 
-    # Get polygon properties
-    fill = ctx.colors.resolve(element.get("fill"))
-    outline = ctx.colors.resolve(element.get("outline", "black"))
-    # width = element.get("width", 1)
+    def shape(draw: ImageDraw.ImageDraw, dx: int, dy: int, *, fill: Any, outline: Any, width: int) -> None:
+        # The outline is one pixel wide whatever the `width`.
+        draw.polygon([(x + dx, y + dy) for x, y in vertices], fill=fill, outline=outline)
 
-    # Draw the polygon
-    draw.polygon(vertices, fill=fill, outline=outline)
+    xs = [x for x, _ in vertices]
+    ys = [y for _, y in vertices]
+    paint_shape(ctx, shape_style(ctx, element), (min(xs), min(ys), max(xs), max(ys)), shape)
 
-    if vertices:
-        ctx.pos_y = max(v[1] for v in vertices)
+    ctx.pos_y = max(ys)
 
 
 @element_handler(ElementType.CIRCLE, requires=["x", "y", "radius"])
 def draw_circle(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw circle element.
 
-    Renders a circle with options for fill and outline.
+    Renders a circle with options for fill, pattern and outline.
 
     Args:
         ctx: Drawing Context
         element: Element dictionary with circle properties
     """
-    draw = ImageDraw.Draw(ctx.img)
-
-    # Coordinates
     x = ctx.coords.parse_x(element["x"])
     y = ctx.coords.parse_y(element["y"])
-
-    # Get circle properties
-    fill = ctx.colors.resolve(element.get("fill"))
-    outline = ctx.colors.resolve(element.get("outline", "black"))
-    width = int(coerce_number(element.get("width", 1), 1))
     radius = ctx.coords.parse_size(element["radius"], is_width=True)
 
-    # Draw circle
-    draw.ellipse(
-        [(x - radius, y - radius), (x + radius, y + radius)],
-        fill=fill,
-        outline=outline,
-        width=width,
-    )
+    def shape(draw: ImageDraw.ImageDraw, dx: int, dy: int, **paint: Any) -> None:
+        draw.ellipse([(x - radius + dx, y - radius + dy), (x + radius + dx, y + radius + dy)], **paint)
+
+    paint_shape(ctx, shape_style(ctx, element), (x - radius, y - radius, x + radius, y + radius), shape)
 
     ctx.pos_y = y + radius
 
@@ -215,27 +204,22 @@ def draw_ellipse(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """
     Draw ellipse element.
 
-    Renders an ellipse with options for fill and outline.
+    Renders an ellipse with options for fill, pattern and outline.
 
     Args:
         ctx: Drawing context
         element: Element dictionary with ellipse properties
     """
-    draw = ImageDraw.Draw(ctx.img)
-
-    # Coordinates
     x_start = ctx.coords.parse_x(element["x_start"])
     x_end = ctx.coords.parse_x(element["x_end"])
     y_start = ctx.coords.parse_y(element["y_start"])
     y_end = ctx.coords.parse_y(element["y_end"])
 
-    # Get ellipse properties
-    fill = ctx.colors.resolve(element.get("fill"))
-    outline = ctx.colors.resolve(element.get("outline", "black"))
-    width = int(coerce_number(element.get("width", 1), 1))
+    def shape(draw: ImageDraw.ImageDraw, dx: int, dy: int, **paint: Any) -> None:
+        draw.ellipse([(x_start + dx, y_start + dy), (x_end + dx, y_end + dy)], **paint)
 
-    # Draw ellipse
-    draw.ellipse([(x_start, y_start), (x_end, y_end)], fill=fill, outline=outline, width=width)
+    box = (min(x_start, x_end), min(y_start, y_end), max(x_start, x_end), max(y_start, y_end))
+    paint_shape(ctx, shape_style(ctx, element), box, shape)
 
     ctx.pos_y = y_end
 
@@ -244,39 +228,31 @@ def draw_ellipse(ctx: DrawingContext, element: dict[str, Any]) -> None:
 def draw_arc(ctx: DrawingContext, element: dict[str, Any]) -> None:
     """Draw an arc or pie slice.
 
-    Renders an arc (outline) or pie slice (filled) based on center point,
+    Renders an arc (outline) or pie slice (filled or patterned) based on center point,
     radius, and angle range.
 
     Args:
         ctx: Drawing context
         element: Element dictionary with arc properties
     """
-    draw = ImageDraw.Draw(ctx.img)
-
-    # Parse center coordinates and radius
     x = ctx.coords.parse_x(element["x"])
     y = ctx.coords.parse_y(element["y"])
     radius = ctx.coords.parse_size(element["radius"], is_width=True)
-
-    # Parse angles
     start_angle = element["start_angle"]
     end_angle = element["end_angle"]
 
-    # Calculate bounding box of the circle/ellipse
-    bbox = [(x - radius, y - radius), (x + radius, y + radius)]
+    style = shape_style(ctx, element)
+    # A fill or a pattern makes a pie slice; with neither it is an arc line.
+    pie = style.fill is not None or style.pattern is not None
 
-    # Get arc properties
-    fill = ctx.colors.resolve(element.get("fill"))  # Used for pie slices
-    outline = ctx.colors.resolve(element.get("outline", "black"))
-    width = element.get("width", 1)
+    def shape(draw: ImageDraw.ImageDraw, dx: int, dy: int, *, fill: Any, outline: Any, width: int) -> None:
+        bbox = [(x - radius + dx, y - radius + dy), (x + radius + dx, y + radius + dy)]
+        if pie:
+            draw.pieslice(bbox, start=start_angle, end=end_angle, fill=fill, outline=outline)
+        else:
+            draw.arc(bbox, start=start_angle, end=end_angle, fill=outline, width=width)
 
-    # Draw the arc
-    if fill:
-        # Filled pie slice
-        draw.pieslice(bbox, start=start_angle, end=end_angle, fill=fill, outline=outline)
-    else:
-        # Outline-only arc
-        draw.arc(bbox, start=start_angle, end=end_angle, fill=outline, width=width)
+    paint_shape(ctx, style, (x - radius, y - radius, x + radius, y + radius), shape)
 
     ctx.pos_y = y + radius
 

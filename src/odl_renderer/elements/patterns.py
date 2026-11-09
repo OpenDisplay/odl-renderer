@@ -74,11 +74,17 @@ def parse_pattern(spec: Any, default_color: str = "black") -> Pattern | None:
     return Pattern(
         type=kind,
         color=str(spec.get("color") or default_color),
-        spacing=max(1, int(coerce_number(spec.get("spacing", DEFAULT_SPACING), DEFAULT_SPACING))),
-        width=max(1, int(coerce_number(spec.get("width", DEFAULT_WIDTH), DEFAULT_WIDTH))),
-        angle=float(coerce_number(spec.get("angle", DEFAULT_ANGLE), DEFAULT_ANGLE)) % 180,
-        level=min(100.0, max(0.0, float(coerce_number(spec.get("level", DEFAULT_LEVEL), DEFAULT_LEVEL)))),
+        spacing=max(1, int(_number(spec, "spacing", DEFAULT_SPACING))),
+        width=max(1, int(_number(spec, "width", DEFAULT_WIDTH))),
+        angle=_number(spec, "angle", DEFAULT_ANGLE) % 180,
+        level=min(100.0, max(0.0, _number(spec, "level", DEFAULT_LEVEL))),
     )
+
+
+def _number(spec: dict[str, Any], key: str, default: float) -> float:
+    """Read a number from a pattern; text that is not a finite number gives the default."""
+    value = float(coerce_number(spec.get(key, default), default))
+    return value if math.isfinite(value) else default
 
 
 @dataclass(frozen=True)

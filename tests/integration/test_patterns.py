@@ -335,6 +335,15 @@ class TestFields:
 
         assert BLACK in set(image.getdata())
 
+    @pytest.mark.parametrize("field", ["spacing", "width", "angle", "level"])
+    @pytest.mark.parametrize("value", ["inf", "-inf", "nan", 1e999])
+    async def test_a_number_that_is_not_finite_is_the_default(self, field, value):
+        pattern_type = "tone" if field == "level" else "hatch"
+        broken = await render(pattern_rectangle({"type": pattern_type, field: value}))
+        default = await render(pattern_rectangle({"type": pattern_type}))
+
+        assert same(broken, default)
+
     async def test_the_pattern_defaults_to_black(self):
         image = await render(pattern_rectangle({"type": "hatch", "angle": 0}))
 

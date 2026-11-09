@@ -21,7 +21,7 @@ from .measure import TextMetrics, line_pitch, measure_text
 from .types import DrawingContext, ElementType, SourceGuard, SourceKind, SourceNotAllowedError, TextSegment
 from .warmup import warmup
 
-__version__ = "0.5.15"
+__version__ = "0.5.16"
 
 __all__ = [
     "warmup",

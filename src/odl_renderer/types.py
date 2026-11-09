@@ -144,3 +144,5 @@ class DrawingContext:
     data_provider: "DataProvider | None" = None
     pos_y: int = 0
     allow_source: SourceGuard | None = None
+    # Transparent layer that transformed elements are drawn on, kept to reuse it.
+    transform_layer: Image.Image | None = None

@@ -31,6 +31,8 @@ BAYER_ORDER = 8
 DIAGONALS = (45.0, 135.0)
 OPAQUE = 255
 ELLIPTICAL_DOT_WIDTH = 3
+# Farther apart than this there are few dots, so they are drawn one by one, not tiled.
+MAX_DOT_TILE = 128
 
 # Pattern types already reported as unknown, so a payload that re-renders on every
 # update logs once rather than on every frame.
@@ -192,23 +194,63 @@ def _hatch(ink: Image.Image, draw: ImageDraw.ImageDraw, area: Area, pattern: Pat
         _slanted_lines(ink, area, pattern)
 
 
-def _dots(draw: ImageDraw.ImageDraw, area: Area, pattern: Pattern) -> None:
+def _tile(ink: Image.Image, area: Area, tile: Image.Image) -> None:
+    """Repeat a square tile over the mask, counting from the canvas origin.
+
+    The tile is anchored to the canvas, so a pattern is the same on every shape and
+    continues across shapes that touch.
+    """
+    order = tile.width
+    left = area.x - area.x % order
+    top = area.y - area.y % order
+    row = Image.new("L", (area.width + 2 * order, order), 0)
+    for x in range(0, row.width, order):
+        row.paste(tile, (x, 0))
+    for y in range(top, area.y + area.height, order):
+        ink.paste(row, (left - area.x, y - area.y))
+
+
+def _draw_dot(draw: ImageDraw.ImageDraw, left: int, top: int, size: int) -> None:
+    """Draw one dot: a square up to two pixels wide, round from three."""
+    box = (left, top, left + size - 1, top + size - 1)
+    if size >= ELLIPTICAL_DOT_WIDTH:
+        draw.ellipse(box, fill=OPAQUE)
+    else:
+        draw.rectangle(box, fill=OPAQUE)
+
+
+def _dot_tile(pattern: Pattern) -> Image.Image:
+    """Return one period of the dots: a dot in the corner, wrapped around the edges.
+
+    A dot wider than the spacing reaches into the neighbouring tiles, so the dots that
+    begin one spacing before the corner are drawn too.
+    """
+    step = pattern.spacing
+    tile = Image.new("L", (step, step), 0)
+    draw = ImageDraw.Draw(tile)
+    for top in (-step, 0):
+        for left in (-step, 0):
+            _draw_dot(draw, left, top, pattern.width)
+    return tile
+
+
+def _dots(ink: Image.Image, draw: ImageDraw.ImageDraw, area: Area, pattern: Pattern) -> None:
     step = pattern.spacing
     size = pattern.width
     if size >= 2 * step:
         # Dots this wide overlap until nothing is left between them.
         draw.rectangle((0, 0, area.width - 1, area.height - 1), fill=OPAQUE)
         return
-    # Start with the dots that begin before the area but reach into it.
+    if step <= MAX_DOT_TILE:
+        _tile(ink, area, _dot_tile(pattern))
+        return
+    # Dots this far apart are few, so each one is drawn. Start with the dots that begin
+    # before the area but reach into it.
     first_x = -(-(area.x - size + 1) // step) * step
     first_y = -(-(area.y - size + 1) // step) * step
     for y in range(first_y, area.y + area.height, step):
         for x in range(first_x, area.x + area.width, step):
-            box = (x - area.x, y - area.y, x - area.x + size - 1, y - area.y + size - 1)
-            if size >= ELLIPTICAL_DOT_WIDTH:
-                draw.ellipse(box, fill=OPAQUE)
-            else:
-                draw.rectangle(box, fill=OPAQUE)
+            _draw_dot(draw, x - area.x, y - area.y, size)
 
 
 def _bayer(order: int) -> list[list[int]]:
@@ -233,13 +275,7 @@ def _tone(ink: Image.Image, area: Area, pattern: Pattern) -> None:
     covered = round(pattern.level / 100 * BAYER_ORDER * BAYER_ORDER)
     tile = Image.new("L", (BAYER_ORDER, BAYER_ORDER), 0)
     tile.putdata([OPAQUE if _BAYER[y][x] < covered else 0 for y in range(BAYER_ORDER) for x in range(BAYER_ORDER)])
-    left = area.x - area.x % BAYER_ORDER
-    top = area.y - area.y % BAYER_ORDER
-    row = Image.new("L", (area.width + 2 * BAYER_ORDER, BAYER_ORDER), 0)
-    for x in range(0, row.width, BAYER_ORDER):
-        row.paste(tile, (x, 0))
-    for y in range(top, area.y + area.height, BAYER_ORDER):
-        ink.paste(row, (left - area.x, y - area.y))
+    _tile(ink, area, tile)
 
 
 def pattern_ink(pattern: Pattern, area: Area) -> Image.Image:
@@ -254,7 +290,7 @@ def pattern_ink(pattern: Pattern, area: Area) -> Image.Image:
     elif pattern.type == "tone":
         _tone(ink, area, pattern)
     else:
-        _dots(draw, area, pattern)
+        _dots(ink, draw, area, pattern)
     return ink
 
 

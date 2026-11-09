@@ -140,6 +140,14 @@ class TestDotsAndGrid:
 
         assert set(image.getdata()) == {BLACK}
 
+    async def test_dots_far_apart_sit_on_the_same_grid(self):
+        pattern = {"type": "dots", "spacing": 150, "width": 3}
+        image = await render(E.rectangle(0, 0, 299, 299, outline=None, pattern=pattern), width=300, height=300)
+
+        for center in ((1, 1), (151, 1), (1, 151), (151, 151)):
+            assert image.getpixel(center) == BLACK
+        assert image.getpixel((76, 76)) == WHITE
+
     async def test_a_dot_cut_by_the_edge_of_the_shape_is_still_drawn(self):
         pattern = {"type": "dots", "spacing": 8, "width": 4}
         whole = await render(pattern_rectangle(pattern))

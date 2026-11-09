@@ -10,7 +10,7 @@ from resizeimage import resizeimage  # type: ignore[import-untyped]
 
 from odl_renderer.colors import BLACK
 from odl_renderer.coordinates import coerce_number
-from odl_renderer.media_loader import decode_image, fetch_image, is_http_url
+from odl_renderer.media_loader import convert_to_srgb, decode_image, fetch_image, is_http_url
 from odl_renderer.registry import element_handler
 from odl_renderer.types import DrawingContext, ElementType, SourceGuard, SourceNotAllowedError
 
@@ -146,8 +146,9 @@ def draw_downloaded_image(ctx: DrawingContext, element: dict[str, Any]) -> None:
         rotate = element.get("rotate", 0)
         resize_method = element.get("resize_method", "stretch")
 
-        # Decode the image; HTTP sources were already fetched by the resolver
-        source_img = decode_image(element["url"], ctx.allow_source)
+        # Decode the image; HTTP sources were already fetched by the resolver.
+        # Convert to sRGB first, because rotating and resizing can drop the embedded profile.
+        source_img = convert_to_srgb(decode_image(element["url"], ctx.allow_source))
 
         # Process image
         if rotate:

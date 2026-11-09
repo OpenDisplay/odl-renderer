@@ -807,7 +807,7 @@ wheels = [
 
 [[package]]
 name = "odl-renderer"
-version = "0.5.15"
+version = "0.5.16"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

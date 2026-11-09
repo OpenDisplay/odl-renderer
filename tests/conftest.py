@@ -77,3 +77,21 @@ def assert_images_similar():
 @pytest.fixture
 def snapshot_png(snapshot):
     return snapshot.use_extension(PixelPNGImageSnapshotExtension)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def basic_text_layout():
+    """Lay out text with Pillow's basic engine, so snapshots do not depend on libraqm.
+
+    Pillow uses libraqm when it is installed and its own layout otherwise. The two place
+    glyphs differently, so snapshots made on one machine failed on the other.
+    """
+    original = ImageFont.truetype
+
+    def truetype_with_basic_layout(*args, **kwargs):
+        kwargs["layout_engine"] = ImageFont.Layout.BASIC
+        return original(*args, **kwargs)
+
+    ImageFont.truetype = truetype_with_basic_layout
+    yield
+    ImageFont.truetype = original

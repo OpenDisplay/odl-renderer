@@ -13,6 +13,7 @@ import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 from PIL import ImageOps
@@ -27,7 +28,9 @@ CANVAS_WIDTH = 296
 CANVAS_HEIGHT = 128
 
 ELEMENT_HEADING_RE = re.compile(r"^### `([a-z_]+)`$")
-CODE_BLOCK_RE = re.compile(r"```yaml\n(.*?)```", re.DOTALL)
+# A yaml block, optionally named by a `<!-- screenshot: name -->` comment on the line before.
+# The first block of a section without a name is the example of the element itself.
+CODE_BLOCK_RE = re.compile(r"(?:<!-- screenshot: ([a-z_]+) -->\n)?```yaml\n(.*?)```", re.DOTALL)
 DLIMG_REAL_URL = "https://picsum.photos/seed/odl/200/150"
 
 
@@ -39,13 +42,18 @@ class MockDataProvider:
         entity_ids: list[str],
         start: datetime,
         end: datetime,
-    ) -> dict[str, list[dict]]:
-        rng = random.Random(42)
+    ) -> dict[str, list[dict[str, str]]]:
         result = {}
-        for entity_id in entity_ids:
+        for index, entity_id in enumerate(entity_ids):
+            # Each entity gets its own walk (a single series keeps the original one).
+            # With several, the first falls and the others rise, so they cross.
+            rng = random.Random(42 + index)
             records = []
             current = start
-            value = 20.0
+            value = 20.0 if index == 0 else 8.0
+            drift = 0.7 if index else 0.0
+            if index == 0 and len(entity_ids) > 1:
+                value, drift = 26.0, -0.6
             while current <= end:
                 records.append(
                     {
@@ -53,13 +61,13 @@ class MockDataProvider:
                         "last_changed": current.isoformat(),
                     }
                 )
-                value += (rng.random() - 0.5) * 2
+                value += (rng.random() - 0.5) * 2 + drift
                 current += timedelta(hours=1)
             result[entity_id] = records
         return result
 
 
-def parse_element_examples(readme: str) -> dict[str, dict]:
+def parse_element_examples(readme: str) -> dict[str, Any]:
     """Extract element config dicts keyed by element name."""
     examples = {}
     for section in re.split(r"\n(?=### `[a-z_]+`)", readme):
@@ -68,19 +76,18 @@ def parse_element_examples(readme: str) -> dict[str, dict]:
         if not heading_match:
             continue
         element_name = heading_match.group(1)
-        code_match = CODE_BLOCK_RE.search(section)
-        if not code_match:
-            continue
-        try:
-            config = ast.literal_eval(code_match.group(1).strip())
-        except (ValueError, SyntaxError) as e:
-            print(f"  WARN could not parse {element_name}: {e}")
-            continue
-        examples[element_name] = config
+        for index, block_match in enumerate(CODE_BLOCK_RE.finditer(section)):
+            name = block_match.group(1) or (element_name if index == 0 else None)
+            if name is None:
+                continue
+            try:
+                examples[name] = ast.literal_eval(block_match.group(2).strip())
+            except (ValueError, SyntaxError) as e:
+                print(f"  WARN could not parse {name}: {e}")
     return examples
 
 
-async def render_element(name: str, config: dict, session: aiohttp.ClientSession) -> None:
+async def render_element(name: str, config: Any, session: aiohttp.ClientSession) -> None:
     """Render a single element config to a PNG file."""
 
     # An example may be a single element dict or a list of elements (used by the
@@ -104,6 +111,9 @@ async def main() -> int:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     readme = README_PATH.read_text()
     examples = parse_element_examples(readme)
+    only = set(sys.argv[1:])
+    if only:
+        examples = {name: config for name, config in examples.items() if name in only}
     print(f"Found {len(examples)} element examples")
 
     failed = []

@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.5.16](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.15...odl-renderer-v0.5.16) (2026-11-09)
+
+
+### Bug Fixes
+
+* **patterns:** keep wide pattern parameters fast and draw dots cut by a shape's edge ([36f6048](https://github.com/OpenDisplay/odl-renderer/commit/36f6048837d0b7add26a6d5b75e41158db00d3c7))
+
+
+### Documentation
+
+* draw the pattern examples with the screenshot script's data provider ([f0625fb](https://github.com/OpenDisplay/odl-renderer/commit/f0625fb82d2a61bd67ae7eb16c309375f429a532))
+* link README pictures absolutely and drop unused pattern pictures ([12c9160](https://github.com/OpenDisplay/odl-renderer/commit/12c91608551f3442a6e564e2df3cdb5b030cb040))
+
+
+### Code Refactoring
+
+* **shapes:** share the shape helpers between shapes and the plot ([979a0c4](https://github.com/OpenDisplay/odl-renderer/commit/979a0c4343ea666090c1218e634ff5b288d9c59b))
+
+
+### Tests
+
+* **patterns:** cover round dots and an empty polygon, drop an unreachable branch ([5e91eec](https://github.com/OpenDisplay/odl-renderer/commit/5e91eec482ce241ff5984b85fdc4f66cfbb9c1d3))
+
 ## [0.5.15](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.14...odl-renderer-v0.5.15) (2026-10-13)
 
 

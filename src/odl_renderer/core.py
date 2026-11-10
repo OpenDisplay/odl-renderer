@@ -205,9 +205,15 @@ def _render_transformed(ctx: DrawingContext, handler: Any, element: dict[str, An
     base image (cost proportional to the element, not the whole canvas). Mutating
     ``ctx.img`` in place preserves any ``ctx.pos_y`` flow updates the handler
     makes (e.g. text auto-flow).
+
+    The layer is kept in the context and reused. After an element only the region it
+    touched is cleared, so many transformed elements on a large canvas do not each
+    allocate a whole new layer.
     """
     base = ctx.img
-    layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    if ctx.transform_layer is None:
+        ctx.transform_layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    layer = ctx.transform_layer
     ctx.img = layer
     try:
         handler(ctx, element)
@@ -224,6 +230,9 @@ def _render_transformed(ctx: DrawingContext, handler: Any, element: dict[str, An
     if result is not None:
         transformed, offset = result
         base.alpha_composite(transformed, offset)
+        # The region cropped for the transform holds everything the element drew.
+        left, top = offset
+        layer.paste((0, 0, 0, 0), (left, top, left + transformed.width, top + transformed.height))
 
 
 _FALSY_VISIBLE_STRINGS = frozenset({"false", "", "0", "no", "off", "none"})

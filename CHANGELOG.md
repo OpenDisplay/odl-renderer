@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.17](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.16...odl-renderer-v0.5.17) (2026-11-21)
+
+
+### Bug Fixes
+
+* **deps:** depend on python-resize-image, which provides resizeimage ([503e197](https://github.com/OpenDisplay/odl-renderer/commit/503e1979af66b4ee9094a4efcac50b0c7c3b226c))
+
 ## [0.5.16](https://github.com/OpenDisplay/odl-renderer/compare/odl-renderer-v0.5.15...odl-renderer-v0.5.16) (2026-11-09)
 
 

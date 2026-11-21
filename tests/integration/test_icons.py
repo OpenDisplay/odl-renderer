@@ -113,3 +113,18 @@ class TestIconSequenceElement:
             ],
         )
         assert image.size == (200, 200)
+
+
+@pytest.mark.asyncio
+async def test_icon_name_used_as_another_icons_alias_draws_its_own_glyph():
+    """'battery' is also an alias of 'fuel-cell', but must not draw the fuel cell."""
+
+    async def draw(name: str) -> bytes:
+        image = await generate_image(
+            width=64,
+            height=64,
+            elements=[{"type": "icon", "value": name, "x": 0, "y": 0, "size": 64}],
+        )
+        return image.tobytes()
+
+    assert await draw("battery") != await draw("fuel-cell")

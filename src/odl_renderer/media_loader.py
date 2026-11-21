@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 
 import aiohttp
-from PIL import Image
+from PIL import Image, ImageCms
 
 from .types import SourceGuard, check_source
 
@@ -136,6 +136,58 @@ def decode_image(
         f"  - Absolute file path (starting with /)\n"
         f"  - Data URI (data:image/...)"
     )
+
+
+def convert_to_srgb(img: Image.Image) -> Image.Image:
+    """Convert an image to sRGB using its embedded ICC profile.
+
+    Blocking (image decoding and colour conversion): call it from a worker thread.
+
+    Args:
+        img: Decoded or lazily opened image. It is not modified.
+
+    Returns:
+        A converted copy, or *img* itself if it has no profile, its profile describes
+        itself as sRGB, or the profile cannot be applied (which logs a warning).
+
+    Raises:
+        OSError: If the image data itself cannot be decoded
+    """
+    icc_profile = img.info.get("icc_profile")
+    if not icc_profile:
+        return img
+
+    img.load()  # outside the try: bad image data is not a bad profile
+    try:
+        source_profile = ImageCms.ImageCmsProfile(io.BytesIO(icc_profile))
+        if "srgb" in ImageCms.getProfileDescription(source_profile).lower():
+            return img
+        return _apply_profile(img, source_profile)
+    except (OSError, ValueError, TypeError, ImageCms.PyCMSError) as err:
+        _LOGGER.warning("Ignoring ICC profile that could not be applied: %s", err)
+        return img
+
+
+def _apply_profile(img: Image.Image, source_profile: ImageCms.ImageCmsProfile) -> Image.Image:
+    """Transform *img* from *source_profile* to sRGB, keeping any alpha channel."""
+
+    def transform(image: Image.Image, output_mode: str) -> Image.Image:
+        srgb = ImageCms.createProfile("sRGB")
+        converted = ImageCms.profileToProfile(image, source_profile, srgb, outputMode=output_mode)
+        assert converted is not None  # only None when converting in place
+        return converted
+
+    if img.mode == "LA":
+        # The transform does not carry alpha across for this mode, so restore it afterwards.
+        converted = transform(img.getchannel("L"), "RGB")
+        converted.putalpha(img.getchannel("A"))
+        return converted
+
+    if img.mode in ("P", "PA"):
+        has_alpha = img.mode == "PA" or "transparency" in img.info
+        img = img.convert("RGBA" if has_alpha else "RGB")
+
+    return transform(img, "RGBA" if img.mode == "RGBA" else "RGB")
 
 
 async def _read_capped(response: aiohttp.ClientResponse) -> bytes:

@@ -140,6 +140,14 @@ class TestDotsAndGrid:
 
         assert set(image.getdata()) == {BLACK}
 
+    async def test_dots_far_apart_sit_on_the_same_grid(self):
+        pattern = {"type": "dots", "spacing": 150, "width": 3}
+        image = await render(E.rectangle(0, 0, 299, 299, outline=None, pattern=pattern), width=300, height=300)
+
+        for center in ((1, 1), (151, 1), (1, 151), (151, 151)):
+            assert image.getpixel(center) == BLACK
+        assert image.getpixel((76, 76)) == WHITE
+
     async def test_a_dot_cut_by_the_edge_of_the_shape_is_still_drawn(self):
         pattern = {"type": "dots", "spacing": 8, "width": 4}
         whole = await render(pattern_rectangle(pattern))
@@ -334,6 +342,15 @@ class TestFields:
         image = await render(pattern_rectangle({"type": "hatch", "angle": 0, "spacing": spacing}))
 
         assert BLACK in set(image.getdata())
+
+    @pytest.mark.parametrize("field", ["spacing", "width", "angle", "level"])
+    @pytest.mark.parametrize("value", ["inf", "-inf", "nan", 1e999])
+    async def test_a_number_that_is_not_finite_is_the_default(self, field, value):
+        pattern_type = "tone" if field == "level" else "hatch"
+        broken = await render(pattern_rectangle({"type": pattern_type, field: value}))
+        default = await render(pattern_rectangle({"type": pattern_type}))
+
+        assert same(broken, default)
 
     async def test_the_pattern_defaults_to_black(self):
         image = await render(pattern_rectangle({"type": "hatch", "angle": 0}))

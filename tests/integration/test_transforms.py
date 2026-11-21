@@ -59,6 +59,38 @@ class TestRotation:
 
 
 @pytest.mark.asyncio
+class TestSeveralTransformedElements:
+    async def test_an_element_leaves_nothing_behind_for_the_next(self):
+        rotated = {
+            "type": "rectangle",
+            "x_start": 10,
+            "y_start": 10,
+            "x_end": 40,
+            "y_end": 30,
+            "fill": "black",
+            "rotation": 30,
+        }
+        # Mirrored about a pivot at the left edge, this lands off the canvas. Its crop
+        # still reaches over the rectangle above, so anything left on the layer would
+        # be mirrored into view.
+        off_canvas = {
+            "type": "rectangle",
+            "x_start": 60,
+            "y_start": 10,
+            "x_end": 70,
+            "y_end": 20,
+            "fill": "black",
+            "mirror": "h",
+            "pivot": [10, 20],
+        }
+
+        alone = await generate_image(120, 60, [rotated], background="white")
+        both = await generate_image(120, 60, [rotated, off_canvas], background="white")
+
+        assert ImageChops.difference(alone.convert("RGB"), both.convert("RGB")).getbbox() is None
+
+
+@pytest.mark.asyncio
 class TestMirror:
     async def test_horizontal_mirror_flips_content(self):
         base = {"type": "text", "value": "Rq", "x": 40, "y": 45, "size": 40}

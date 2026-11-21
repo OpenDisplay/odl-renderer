@@ -812,8 +812,8 @@ source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "pillow" },
+    { name = "python-resize-image" },
     { name = "qrcode", extra = ["pil"] },
-    { name = "resize-image" },
 ]
 
 [package.optional-dependencies]
@@ -850,8 +850,8 @@ requires-dist = [
     { name = "hypothesis", marker = "extra == 'property'", specifier = ">=6.151.12" },
     { name = "imagehash", marker = "extra == 'visual'", specifier = ">=4.3.2" },
     { name = "pillow", specifier = ">=12.0.0" },
+    { name = "python-resize-image", specifier = ">=1.1.20" },
     { name = "qrcode", extras = ["pil"], specifier = ">=7.4.2" },
-    { name = "resize-image", specifier = ">=0.4.0" },
     { name = "syrupy", marker = "extra == 'visual'", specifier = ">=5.1.0" },
 ]
 provides-extras = ["visual", "property"]
@@ -1280,16 +1280,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/c9/74/b3ff8e6c8446842c3
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/db/4254e3eabe8020b458f1a747140d32277ec7a271daf1d235b70dc0b4e6e3/requests-2.32.5-py3-none-any.whl", hash = "sha256:2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6", size = 64738, upload-time = "2025-08-18T20:46:00.542Z" },
 ]
-
-[[package]]
-name = "resize-image"
-version = "0.4.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pillow" },
-    { name = "python-resize-image" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/d5/50/706da00af43892c7a9291710b3917441f616389a6ba9f9695d11161ea5d6/resize-image-0.4.0.tar.gz", hash = "sha256:9e526fc8a49429434b7257817eb347df02a1d10f7bf9df256886b93ce9bb21e3", size = 1970, upload-time = "2020-09-09T05:24:23.982Z" }
 
 [[package]]
 name = "ruff"
